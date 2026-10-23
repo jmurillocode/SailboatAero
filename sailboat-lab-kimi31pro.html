@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AERONAUT / Sailing Physics Lab</title>
+<style>
+:root{--bg:#061018;--panel:#0a1721;--panel2:#0d1c27;--line:#1b3442;--text:#dbe9ed;--muted:#7f9aa6;--cyan:#55d9e8;--amber:#f2b85b;--red:#ff7373;--green:#72d6a0;--blue:#79aaff;--violet:#c7a0ff;--sans:"Avenir Next","Segoe UI",Arial,sans-serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12px}button,input,select{font:inherit}button{color:var(--text)}button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#app{height:100%;display:grid;grid-template-rows:58px minmax(0,1fr) 27px}.topbar{display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--line);background:#08141d;gap:18px}.brand{font-size:16px;letter-spacing:.18em;font-weight:650;white-space:nowrap}.brand b{color:var(--cyan);font-weight:650}.brand span{color:var(--muted);font-weight:400;letter-spacing:.08em;font-size:12px}.top-status{display:flex;align-items:center;gap:8px;margin-left:auto}.pill{border:1px solid var(--line);border-radius:3px;padding:5px 8px;color:var(--muted);font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase}.pill.live{color:var(--green);border-color:#285440}.pill.paused{color:var(--amber);border-color:#594725}
+.workspace{min-height:0;display:grid;grid-template-columns:256px minmax(360px,1fr) 254px}.sidebar{min-height:0;overflow:auto;background:var(--panel);scrollbar-width:thin;scrollbar-color:var(--line) transparent}.sidebar.left{border-right:1px solid var(--line)}.sidebar.right{border-left:1px solid var(--line)}.section{padding:14px 15px;border-bottom:1px solid var(--line)}.section h2,.panel-title{margin:0 0 11px;font:10px var(--mono);letter-spacing:.15em;text-transform:uppercase;color:#9bb4be}.control{margin:0 0 12px}.control:last-child{margin-bottom:0}.labelrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}.labelrow label{color:#b8cbd2}.value{font:11px var(--mono);color:var(--cyan);white-space:nowrap}.hint{font-size:10px;color:var(--muted);line-height:1.4;margin-top:5px}input[type=range]{width:100%;height:16px;margin:0;appearance:none;background:transparent;cursor:pointer}input[type=range]::-webkit-slider-runnable-track{height:3px;background:#25414f;border-radius:2px}input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:12px;border-radius:50%;background:var(--cyan);margin-top:-4.5px;border:2px solid #0a1721;box-shadow:0 0 0 1px var(--cyan)}input[type=range]:disabled{opacity:.35;cursor:not-allowed}
+.segmented{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:#06121a;padding:3px;border:1px solid var(--line);border-radius:4px}.segmented button,.speed button{border:0;background:transparent;padding:7px 5px;cursor:pointer;border-radius:2px;color:var(--muted)}.segmented button.active{background:#17323e;color:var(--cyan)}.buttonrow{display:flex;gap:6px;margin-top:8px}.btn{border:1px solid #29434f;background:#10232e;border-radius:3px;padding:7px 10px;cursor:pointer;flex:1}.btn:hover{background:#18333f;border-color:#3b5e6c}.btn.primary{color:#071117;background:var(--cyan);border-color:var(--cyan);font-weight:650}.btn.primary:hover{background:#83e7f1}.speed{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:8px}.speed button{border:1px solid var(--line);padding:5px 2px;font:10px var(--mono)}.speed button.active{color:var(--amber);border-color:#6b5532;background:#241f17}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px 6px}.check{display:flex;gap:7px;align-items:center;color:#b7cbd2;cursor:pointer;min-height:22px}.check input{accent-color:var(--cyan);margin:0}.camera-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:9px}.camera-grid button{padding:6px 4px;border:1px solid var(--line);background:#0d202b;color:var(--muted);border-radius:3px;cursor:pointer;font-size:10px}.camera-grid button:hover{color:var(--cyan);border-color:#3c6675}.experiment{width:100%;text-align:left;border:1px solid var(--line);background:#0d1e28;padding:8px 9px;margin-bottom:5px;border-radius:3px;cursor:pointer}.experiment:hover{border-color:#467180;background:#122732}.experiment b{display:block;font-size:11px;font-weight:550}.experiment span{font:9px var(--mono);color:var(--muted)}
+.center{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) 126px;background:#06121a}.viewport{position:relative;min-height:0;overflow:hidden}#scene{display:block;width:100%;height:100%}.scene-top{position:absolute;left:15px;right:15px;top:13px;display:flex;justify-content:space-between;pointer-events:none;gap:10px}.scene-label{font:10px var(--mono);letter-spacing:.12em;color:#8eabb6;text-transform:uppercase;text-shadow:0 1px 4px #000}.scene-label strong{color:var(--cyan);font-weight:500}.rig-note{position:absolute;left:15px;bottom:13px;max-width:420px;padding:7px 9px;background:rgba(5,16,23,.82);border:1px solid rgba(54,88,102,.7);border-radius:3px;color:#8faab4;font-size:10px;line-height:1.45;pointer-events:none}.flow-note{position:absolute;right:15px;bottom:13px;color:#72909c;font:9px var(--mono);text-align:right;pointer-events:none}.notice{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(390px,85%);background:#0b1c26;border:1px solid var(--amber);padding:18px;box-shadow:0 15px 50px #0009;text-align:center}.notice.show{display:block}.notice h3{margin:0 0 8px;color:var(--amber);font-size:15px}.notice p{color:#aac0c8;line-height:1.5}.notice button{width:auto;padding:7px 20px}.observation{position:absolute;top:42px;left:15px;max-width:370px;color:#d4e3e7;background:rgba(8,23,32,.9);border:1px solid #284652;padding:9px 11px;line-height:1.45;display:none}.observation.show{display:block}.observation b{color:var(--amber);font-weight:550}
+.charts{border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;background:#08151e;min-height:0}.chart-wrap{position:relative;padding:27px 10px 8px}.chart-wrap+.chart-wrap{border-left:1px solid var(--line)}.chart-title{position:absolute;top:8px;left:12px;right:12px;display:flex;justify-content:space-between;font:9px var(--mono);letter-spacing:.1em;color:var(--muted)}.chart-title output{color:var(--cyan);letter-spacing:0}.chart-wrap canvas{width:100%;height:100%;display:block}
+.readout-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}.readout{background:var(--panel);padding:9px 8px;min-width:0}.readout.wide{grid-column:1/-1}.readout label{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}.readout output{font:15px var(--mono);color:#d7edf1;white-space:nowrap}.readout output small{font-size:9px;color:var(--muted)}.readout.wide output{font-size:12px}.aero-state{display:inline-flex;align-items:center;gap:7px}.state-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px currentColor}.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 4px}.legend-item{display:flex;align-items:center;gap:6px;color:#a9c0c8;font-size:10px}.swatch{width:14px;height:2px;background:var(--c);box-shadow:0 0 5px var(--c)}.scale-note{font:9px var(--mono);color:var(--muted);margin-top:10px;line-height:1.5}details{font-size:11px}summary{cursor:pointer;color:#b9cdd4;list-style:none}summary::-webkit-details-marker{display:none}summary:before{content:"+";font:12px var(--mono);color:var(--cyan);display:inline-block;width:15px}details[open] summary:before{content:"−"}details p,details .detail-body{color:#8fa8b2;line-height:1.55;margin:10px 0 0}code{font:10px var(--mono);color:#bfd7de}.check-result{display:grid;grid-template-columns:38px 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #142b37;line-height:1.35}.check-result:last-child{border:0}.pass{color:var(--green);font:9px var(--mono)}.fail{color:var(--red);font:9px var(--mono)}.check-result span:last-child{color:#9bb2bb;font-size:10px}.footer{display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-top:1px solid var(--line);background:#07131b;color:#698793;font:9px var(--mono);letter-spacing:.04em}.footer b{color:#91adb7;font-weight:400}
+#fatal{display:none;position:fixed;inset:0;background:#07131b;z-index:50;place-items:center;padding:30px}#fatal.show{display:grid}#fatal>div{max-width:540px;border:1px solid #6b3d3d;padding:24px;background:#111d24}#fatal h1{color:var(--red);font-size:20px}#fatal p{line-height:1.6;color:#b7cbd2}.mobile-tabs{display:none}
+@media(max-width:1050px){.workspace{grid-template-columns:224px minmax(330px,1fr) 218px}.section{padding:12px}.brand span{display:none}.readout output{font-size:13px}.rig-note{max-width:320px}.flow-note{display:none}}
+@media(max-width:800px){#app{grid-template-rows:52px 40px minmax(0,1fr) 25px}.topbar{padding:0 12px}.brand{font-size:13px}.top-status .pill:first-child{display:none}.mobile-tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}.mobile-tabs button{background:#091721;border:0;border-right:1px solid var(--line);color:var(--muted)}.mobile-tabs button.active{color:var(--cyan);background:#102631}.workspace{display:block;position:relative}.center{height:100%;grid-template-rows:minmax(0,1fr) 110px}.sidebar{display:none;position:absolute;inset:0;z-index:5;border:0}.sidebar.mobile-active{display:block}.workspace.controls-open .center,.workspace.instruments-open .center{visibility:hidden}.readout-grid{grid-template-columns:repeat(2,1fr)}.scene-top{top:9px}.rig-note{max-width:75%;font-size:9px}.charts{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="fatal"><div><h1>Unable to start the 3D lab</h1><p id="fatal-message">This exhibit needs WebGL and the pinned Three.js CDN scripts. Check that your browser supports WebGL and that you are online, then reopen this file.</p></div></div>
+<div id="app">
+<header class="topbar">
+  <div class="brand"><b>AERONAUT</b> <span>/ Sailing Physics Lab</span></div>
+  <div class="top-status"><span class="pill" id="sim-clock">T+ 00:00.0</span><span class="pill live" id="run-status">Simulation live</span></div>
+</header>
+<nav class="mobile-tabs" aria-label="Panel selection"><button data-panel="controls">Controls</button><button data-panel="scene" class="active">3D Lab</button><button data-panel="instruments">Instruments</button></nav>
+<main class="workspace" id="workspace">
+<aside class="sidebar left" id="controls-panel">
+  <section class="section"><h2>Test configuration</h2>
+    <div class="segmented"><button id="mode-fixed" class="active">Fixed test rig</button><button id="mode-free">Free sailing</button></div>
+    <div class="buttonrow"><button class="btn primary" id="play">Pause</button><button class="btn" id="reset">Reset</button></div>
+    <div class="speed" aria-label="Simulation speed"><button data-speed="0.25">0.25×</button><button data-speed="0.5">0.5×</button><button data-speed="1" class="active">1×</button><button data-speed="2">2×</button></div>
+  </section>
+  <section class="section"><h2>Environment</h2>
+    <div class="control"><div class="labelrow"><label for="wind-speed">True wind speed</label><output class="value" id="wind-speed-value"></output></div><input id="wind-speed" type="range" min="0" max="20" step="0.1" value="8"></div>
+    <div class="control"><div class="labelrow"><label for="wind-dir">Wind FROM · world</label><output class="value" id="wind-dir-value"></output></div><input id="wind-dir" type="range" min="0" max="360" step="1" value="80"><div class="hint">Nautical “from” direction. Air travels toward direction + 180°.</div></div>
+    <div class="control"><div class="labelrow"><label for="gust">Gust strength</label><output class="value" id="gust-value"></output></div><input id="gust" type="range" min="0" max="0.6" step="0.01" value="0.18"></div>
+    <label class="check"><input id="gust-enabled" type="checkbox"> Smooth deterministic gusts</label>
+  </section>
+  <section class="section"><h2>Boat & appendages</h2>
+    <div class="control"><div class="labelrow"><label for="trim">Sail trim · boom</label><output class="value" id="trim-value"></output></div><input id="trim" type="range" min="-85" max="85" step="1" value="-55"><div class="hint">0° centred; + starboard, − port, measured from centreline.</div></div>
+    <div class="control"><div class="labelrow"><label for="rudder">Rudder · + starboard turn</label><output class="value" id="rudder-value"></output></div><input id="rudder" type="range" min="-30" max="30" step="1" value="0"></div>
+    <div class="control"><div class="labelrow"><label for="heading">Initial heading · world</label><output class="value" id="heading-value"></output></div><input id="heading" type="range" min="0" max="359" step="1" value="0"></div>
+    <div class="control"><div class="labelrow"><label for="mass">Displacement</label><output class="value" id="mass-value"></output></div><input id="mass" type="range" min="500" max="1800" step="25" value="900"></div>
+  </section>
+  <section class="section"><h2>View layers</h2>
+    <div class="toggles"><label class="check"><input id="show-flow" type="checkbox" checked> Airflow</label><label class="check"><input id="show-forces" type="checkbox" checked> Force vectors</label><label class="check"><input id="show-track" type="checkbox" checked> Wake / track</label><label class="check"><input id="underwater" type="checkbox"> Underwater</label></div>
+    <div class="control" style="margin-top:12px"><div class="labelrow"><label for="density">Airflow particles</label><output class="value" id="density-value"></output></div><input id="density" type="range" min="100" max="900" step="50" value="500"></div>
+    <div class="camera-grid"><button data-camera="perspective">Perspective</button><button data-camera="overhead">Overhead</button><button data-camera="stern">Stern</button><button data-camera="sail">Sail close-up</button></div>
+  </section>
+  <section class="section"><h2>Guided experiments</h2>
+    <button class="experiment" data-preset="beam"><b>01 · Beam reach</b><span>LIFT → FORWARD DRIVE</span></button>
+    <button class="experiment" data-preset="close"><b>02 · Close-hauled</b><span>DRIVE + LATERAL LOAD</span></button>
+    <button class="experiment" data-preset="downwind"><b>03 · Dead downwind</b><span>DRAG-DOMINATED</span></button>
+    <button class="experiment" data-preset="stall"><b>04 · Stall demonstration</b><span>FIXED RIG · SEPARATED WAKE</span></button>
+    <button class="experiment" data-preset="gust"><b>05 · Gust response</b><span>FREE SAILING · HEEL RECOVERY</span></button>
+  </section>
+</aside>
+<section class="center" id="scene-panel">
+  <div class="viewport" id="viewport"><canvas id="scene"></canvas>
+    <div class="scene-top"><div class="scene-label"><strong id="scene-mode">FIXED TEST 01</strong> / WIND BASIN</div><div class="scene-label" id="camera-label">PERSPECTIVE · ORBIT / PAN / ZOOM</div></div>
+    <div class="observation" id="observation"></div>
+    <div class="rig-note" id="rig-note">Test-rig reactions balance all aerodynamic forces and moments; boat translation and rotation are constrained.</div>
+    <div class="flow-note">ILLUSTRATIVE AIRFLOW — NOT A CFD SOLUTION.<br><span id="flow-frame">WORLD-SPACE AIR MOTION</span></div>
+    <div class="notice" id="notice"><h3 id="notice-title">Simulation paused</h3><p id="notice-text"></p><button class="btn" id="notice-reset">Reset experiment</button></div>
+  </div>
+  <div class="charts">
+    <div class="chart-wrap"><div class="chart-title"><span>BOAT SPEED · LAST 30 SIM s</span><output id="chart-speed">0.00 kn</output></div><canvas id="speed-chart"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title"><span>HEEL · LAST 30 SIM s</span><output id="chart-heel">0.0°</output></div><canvas id="heel-chart"></canvas></div>
+  </div>
+</section>
+<aside class="sidebar right" id="instruments-panel">
+  <section class="section"><h2>Live instrumentation</h2><div class="readout-grid">
+    <div class="readout"><label>True wind</label><output id="r-tws">—</output></div><div class="readout"><label>Apparent wind</label><output id="r-aws">—</output></div>
+    <div class="readout"><label>AWA · from bow</label><output id="r-awa">—</output></div><div class="readout"><label>Boat speed</label><output id="r-speed">—</output></div>
+    <div class="readout"><label>Heading</label><output id="r-heading">—</output></div><div class="readout"><label>Leeway</label><output id="r-leeway">—</output></div>
+    <div class="readout"><label>Sail angle of attack</label><output id="r-aoa">—</output></div><div class="readout"><label>Heel</label><output id="r-heel">—</output></div>
+    <div class="readout"><label>Sail lift</label><output id="r-lift">—</output></div><div class="readout"><label>Sail drag</label><output id="r-drag">—</output></div>
+    <div class="readout wide"><label>Forward driving force</label><output id="r-drive">—</output></div>
+    <div class="readout wide"><label>Aerodynamic state</label><output class="aero-state"><i class="state-dot" id="state-dot"></i><span id="r-state">—</span></output></div>
+  </div></section>
+  <section class="section"><h2>Vector legend</h2><div class="legend">
+    <div class="legend-item"><i class="swatch" style="--c:#79aaff"></i>True wind</div><div class="legend-item"><i class="swatch" style="--c:#55d9e8"></i>Apparent wind</div>
+    <div class="legend-item"><i class="swatch" style="--c:#72d6a0"></i>Sail lift</div><div class="legend-item"><i class="swatch" style="--c:#f2b85b"></i>Sail drag</div>
+    <div class="legend-item"><i class="swatch" style="--c:#f2f5f6"></i>Total aero</div><div class="legend-item"><i class="swatch" style="--c:#c7a0ff"></i>Keel force</div>
+  </div><div class="scale-note">FORCE 1 m = 167 N · WIND 1 m = 4.5 m s⁻¹<br>Arrows originate at each force’s application point.</div></section>
+  <section class="section"><details><summary class="panel-title" style="margin:0">Coefficient model</summary><div class="detail-body">
+    Signed angle of attack α is measured from sail chord (luff → leech) to apparent air velocity. Lift is perpendicular to that velocity; drag follows it. The model is symmetric on port and starboard.<br><br>
+    <code>q = ½ρV² · L = qS C<sub>L</sub> · D = qS C<sub>D</sub></code><br><br>
+    Lift rises smoothly to C<sub>L</sub> = 1.25 at 28°, then progressively washes out to zero at 90°. Drag combines profile, induced and broadside terms: <code>0.07 + 1.55 sin²α + 0.18 C<sub>L</sub>²</code>. Keel and rudder use bounded symmetric foil curves with earlier stall.<br><br>
+    This is a reduced-order engineering model, not CFD. Water is still; hull drag opposes water-relative motion. Heel uses <code>mgGM sin φ</code> within ±35°, with a pause at 60°.
+  </div></details></section>
+  <section class="section"><details id="physics-details"><summary class="panel-title" style="margin:0">Physics checks</summary><div class="detail-body" id="physics-checks">Running numerical checks…</div></details></section>
+  <section class="section"><details><summary class="panel-title" style="margin:0">Coordinates & assumptions</summary><div class="detail-body">Model axes: +x forward, +y starboard, +z up. World angles increase counter-clockwise from +x. Positive yaw is port; positive rudder commands starboard. Heel is signed roll about +x.<br><br>Still water, rigid sails, no waves in the force balance, no added mass, no heel-dependent wetted area, and uniform flow over each foil. The decorative water shader never feeds energy into dynamics.</div></details></section>
+</aside>
+</main>
+<footer class="footer"><span><b>SPACE</b> play/pause · <b>R</b> reset · drag orbit · right-drag pan · wheel zoom</span><span>SI SOLVER · 120 HZ · SEMI-IMPLICIT EULER</span></footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/build/three.min.js" onerror="window.cdnFailed=true"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.146.0/examples/js/controls/OrbitControls.js" onerror="window.cdnFailed=true"></script>
+<script>
+'use strict';
+/* AERONAUT — reduced-order sailing laboratory. All physics uses SI units.
+   Model coordinates are right-handed: x forward, y starboard, z up.
+   Rendering maps model (x,y,z) to Three.js (x,z,-y). */
+const CONFIG = Object.freeze({
+  dt:1/120, maxFrame:0.1, maxSteps:24, airDensity:1.225, waterDensity:1025,
+  sailArea:20, sailCE:{x:0.15,y:0,z:3.25}, sailCLMax:1.25, sailStall:28*Math.PI/180,
+  keelArea:1.25, rudderArea:0.32, foilCLMax:1.05, foilStall:18*Math.PI/180,
+  keelPos:{x:0.1,y:0,z:-1.05}, rudderPos:{x:-2.05,y:0,z:-0.65},
+  hullDragLinear:24, hullDragQuadratic:32, keelCD0:0.035, rudderCD0:0.045,
+  yawDamping:420, rollDamping:2400, yawInertia:850, rollInertia:1600,
+  GM:1.2, gravity:9.81, heelWarn:35*Math.PI/180, heelStop:60*Math.PI/180,
+  boundary:105, forceScale:1/167, windScale:1/4.5, trackMax:1200
+});
+const $=id=>document.getElementById(id), rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const V=(x=0,y=0)=>({x,y});
+const add=(a,b)=>V(a.x+b.x,a.y+b.y), sub=(a,b)=>V(a.x-b.x,a.y-b.y), mul=(a,s)=>V(a.x*s,a.y*s);
+const dot=(a,b)=>a.x*b.x+a.y*b.y, cross=(a,b)=>a.x*b.y-a.y*b.x;
+const mag=a=>Math.hypot(a.x,a.y), norm=a=>{const m=mag(a);return m>1e-10?mul(a,1/m):V();};
+const rotate=(a,t)=>V(a.x*Math.cos(t)-a.y*Math.sin(t),a.x*Math.sin(t)+a.y*Math.cos(t));
+const toWorld=(v,psi)=>rotate(v,psi), toBody=(v,psi)=>rotate(v,-psi);
+const pointVelocity=(s,r,psi)=>{const w=toWorld(r,psi);return V(s.vx-s.r*w.y,s.vy+s.r*w.x);};
+const trueWind=(p,t)=>{const gust=p.gustEnabled?1+p.gust*(0.62*Math.sin(t*0.73)+0.28*Math.sin(t*1.61+0.8)+0.10*Math.sin(t*3.1+1.9)):1;const speed=Math.max(0,p.windSpeed*gust);return V(-speed*Math.cos(p.windDir),-speed*Math.sin(p.windDir));};
+function foilCoefficients(alpha,maxCL,stall){
+  const a=Math.abs(alpha), folded=a<=Math.PI/2?a:Math.max(0,Math.PI-a), sign=Math.sign(alpha);
+  let cl;
+  if(folded<=stall) cl=maxCL*Math.sin(folded/stall*Math.PI/2);
+  else cl=maxCL*Math.cos(clamp((folded-stall)/(Math.PI/2-stall),0,1)*Math.PI/2);
+  return sign*cl;
+}
+function sailCoefficients(alpha){return {CL:foilCoefficients(alpha,CONFIG.sailCLMax,CONFIG.sailStall),CD:0.07+1.55*Math.sin(alpha)**2+0.18*foilCoefficients(alpha,CONFIG.sailCLMax,CONFIG.sailStall)**2};}
+function sailForces(airVelocity,boatPointVelocity,trim){
+  const apparent=sub(airVelocity,boatPointVelocity), speed=mag(apparent);
+  if(speed<1e-8)return {apparent,speed:0,alpha:0,CL:0,CD:0,lift:0,drag:0,force:V(),drive:0,liftVector:V(),dragVector:V(),state:'luffing',stallSeverity:0};
+  const chord=V(-Math.cos(trim),Math.sin(trim));
+  const alpha=Math.atan2(cross(chord,apparent),dot(chord,apparent));
+  const {CL,CD}=sailCoefficients(alpha), q=.5*CONFIG.airDensity*speed*speed;
+  const L=q*CONFIG.sailArea*CL,D=q*CONFIG.sailArea*CD, flow=norm(apparent), liftDir=V(-flow.y,flow.x);
+  const liftVector=mul(liftDir,L),dragVector=mul(flow,D),force=add(liftVector,dragVector);
+  const aa=Math.abs(alpha), stallDeg=deg(CONFIG.sailStall);
+  const state=aa<rad(3)?'luffing':aa<CONFIG.sailStall?'attached flow':aa<rad(stallDeg+9)?'approaching stall':'stalled';
+  return {apparent,speed,alpha,CL,CD,lift:L,drag:D,force,drive:force.x,liftVector,dragVector,state,stallSeverity:clamp((aa-CONFIG.sailStall)/(Math.PI/2-CONFIG.sailStall),0,1)};
+}
+function foilForce(relativeFluid,chord,area,cd0){
+  const speed=mag(relativeFluid);if(speed<0.025)return {force:V(),lift:0,drag:0,alpha:0,speed};
+  const alpha=Math.atan2(cross(chord,relativeFluid),dot(chord,relativeFluid));
+  const CL=foilCoefficients(alpha,CONFIG.foilCLMax,CONFIG.foilStall),CD=cd0+0.9*Math.sin(alpha)**2+0.12*CL*CL;
+  const q=.5*CONFIG.waterDensity*speed*speed,flow=norm(relativeFluid),liftDir=V(-flow.y,flow.x);
+  const lv=mul(liftDir,q*area*CL),dv=mul(flow,q*area*CD);
+  return {force:add(lv,dv),liftVector:lv,dragVector:dv,lift:q*area*CL,drag:q*area*CD,alpha,speed};
+}
+function computeDynamics(s,p,air){
+  const ceV=pointVelocity(s,CONFIG.sailCE,p.heading),aero=sailForces(toBody(air,p.heading),toBody(ceV,p.heading),p.trim);
+  const keelV=mul(pointVelocity(s,CONFIG.keelPos,p.heading),-1);
+  const keel=foilForce(keelV,V(-1,0),CONFIG.keelArea,CONFIG.keelCD0);
+  const rudderV=mul(pointVelocity(s,CONFIG.rudderPos,p.heading),-1);
+  const rudderChord=V(-Math.cos(p.rudder),-Math.sin(p.rudder));
+  const rudder=foilForce(rudderV,rudderChord,CONFIG.rudderArea,CONFIG.rudderCD0);
+  const hullV=V(s.vx,s.vy),speed=mag(hullV),hullDrag=speed>1e-9?mul(norm(hullV),-(CONFIG.hullDragLinear*speed+CONFIG.hullDragQuadratic*speed*speed)):V();
+  const aeroW=toWorld(aero.force,p.heading),keelW=toWorld(keel.force,p.heading),rudderW=toWorld(rudder.force,p.heading);
+  const totalW=add(add(add(aeroW,keelW),rudderW),hullDrag);
+  const moment=(r,f)=>r.x*f.y-r.y*f.x;
+  let yaw=moment(CONFIG.sailCE,aero.force)+moment(CONFIG.keelPos,keel.force)+moment(CONFIG.rudderPos,rudder.force)-CONFIG.yawDamping*s.r;
+  let roll=-CONFIG.sailCE.z*aero.force.y-CONFIG.keelPos.z*keel.force.y-CONFIG.rudderPos.z*rudder.force.y-p.mass*CONFIG.gravity*CONFIG.GM*Math.sin(s.heel)-CONFIG.rollDamping*s.heelRate;
+  return {aero,keel,rudder,hullDrag,totalW,yaw,roll,speed};
+}
+function initialState(p){return {x:0,y:0,vx:0,vy:0,heading:p.heading,r:0,heel:0,heelRate:0,time:0};}
+function integrateOne(s,p,dt){
+  const air=trueWind(p,s.time),d=computeDynamics(s,p,air),massScale=p.mass/900;
+  s.vx+=d.totalW.x/p.mass*dt;s.vy+=d.totalW.y/p.mass*dt;
+  s.x+=s.vx*dt;s.y+=s.vy*dt;
+  s.r+=d.yaw/(CONFIG.yawInertia*massScale)*dt;s.heading=wrap(s.heading+s.r*dt);
+  s.heelRate+=d.roll/(CONFIG.rollInertia*massScale)*dt;s.heel+=s.heelRate*dt;
+  s.time+=dt;
+  if(!Number.isFinite(s.x+s.y+s.vx+s.vy+s.heading+s.r+s.heel+s.heelRate))throw new Error('Non-finite physics state');
+  return d;
+}
+const params={windSpeed:8,windDir:rad(80),gust:.18,gustEnabled:false,trim:rad(-55),rudder:0,heading:0,mass:900,mode:'fixed',playing:true,speed:1,showFlow:true,showForces:true,showTrack:true,underwater:false,density:500,camera:'perspective'};
+let state=initialState(params),latest=null,accumulator=0,lastTime=0,chartSample=0,track=[],charts=[],boundaryStopped=false;
+let scene,camera,renderer,controls,boat,sailGroup,sailMesh,boom,rudderMesh,water,waterFree,basin,tunnel,flowPoints,flowLines,trackLine;
+let arrows={},flow=[],flowPrev=[],flowSeed=1,cameraTween=null,lastChartWidth=0;
+const MAX_FLOW=900;
+function m3(v){return new THREE.Vector3(v.x,v.z,-v.y)}
+function fatal(message){$('fatal-message').textContent=message;$('fatal').classList.add('show');}
+function makeBoat(){
+  boat=new THREE.Group();scene.add(boat);
+  const hullMat=new THREE.MeshStandardMaterial({color:0xd5ddda,roughness:.38,metalness:.08});
+  const sections=[[-2.5,.72,.48,-.28],[-2.15,1.00,.53,-.52],[-1.2,1.16,.57,-.72],[0,1.14,.62,-.80],[1.15,.88,.67,-.64],[2.15,.43,.75,-.34],[2.85,.035,.80,-.04]];
+  const verts=[],indices=[];
+  for(const [x,w,top,bottom] of sections){const ring=[[-w,top],[-w*.96,top-.18],[-w*.62,bottom+.25],[0,bottom],[w*.62,bottom+.25],[w*.96,top-.18],[w,top]];for(const [z,y] of ring)verts.push(x,y,z);}
+  for(let i=0;i<sections.length-1;i++)for(let j=0;j<6;j++){const a=i*7+j,b=a+7;indices.push(a,b,a+1,b,b+1,a+1);}
+  for(const end of [0,sections.length-1]){const base=end*7;for(let j=1;j<6;j++)indices.push(base,base+j,base+j+1);}
+  const hullGeo=new THREE.BufferGeometry();hullGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));hullGeo.setIndex(indices);hullGeo.computeVertexNormals();const hull=new THREE.Mesh(hullGeo,hullMat);hull.castShadow=true;boat.add(hull);
+  const deckVerts=[],deckIdx=[];for(const [x,w,top] of sections){deckVerts.push(x,top,-w,x,top,w);}for(let i=0;i<sections.length-1;i++){const a=i*2;deckIdx.push(a,a+2,a+1,a+2,a+3,a+1);}const deckGeo=new THREE.BufferGeometry();deckGeo.setAttribute('position',new THREE.Float32BufferAttribute(deckVerts,3));deckGeo.setIndex(deckIdx);deckGeo.computeVertexNormals();const deck=new THREE.Mesh(deckGeo,new THREE.MeshStandardMaterial({color:0xb7c3bf,roughness:.65,side:THREE.DoubleSide}));deck.receiveShadow=true;boat.add(deck);
+  const cockpit=new THREE.Mesh(new THREE.BoxGeometry(1.65,.13,1.15),new THREE.MeshStandardMaterial({color:0x102d39,roughness:.8}));cockpit.position.set(-1.12,.64,0);boat.add(cockpit);
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.3,.25,1.25),new THREE.MeshStandardMaterial({color:0xdde3dd,roughness:.5}));cabin.position.set(.55,.76,0);cabin.castShadow=true;boat.add(cabin);
+  const dark=new THREE.MeshStandardMaterial({color:0x172a32,metalness:.65,roughness:.3});
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(.035,.052,6.5,12),dark);mast.position.set(.45,3.85,0);mast.castShadow=true;boat.add(mast);
+  sailGroup=new THREE.Group();sailGroup.position.set(.45,0,0);boat.add(sailGroup);
+  const sailGeo=new THREE.BufferGeometry(),su=14,sv=20,pos=[],uv=[],idx=[];
+  for(let j=0;j<=sv;j++)for(let i=0;i<=su;i++){const v=j/sv,u=i/su,chord=2.65*Math.pow(1-v,.72)+.035;const camber=.32*Math.sin(Math.PI*u)*Math.sin(Math.PI*(v*.75+.12));pos.push(-chord*u,1.15+v*5.65,camber);uv.push(u,v);}
+  for(let j=0;j<sv;j++)for(let i=0;i<su;i++){const a=j*(su+1)+i,b=a+su+1;idx.push(a,b,a+1,b,b+1,a+1);}
+  sailGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));sailGeo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));sailGeo.setIndex(idx);sailGeo.computeVertexNormals();
+  sailMesh=new THREE.Mesh(sailGeo,new THREE.MeshPhysicalMaterial({color:0xe4e8df,roughness:.72,metalness:0,side:THREE.DoubleSide,transparent:true,opacity:.94}));sailMesh.castShadow=true;sailGroup.add(sailMesh);
+  const seamMat=new THREE.LineBasicMaterial({color:0x6b8588,transparent:true,opacity:.42});
+  for(const v of [.18,.36,.54,.72,.88]){const pts=[];for(let i=0;i<=24;i++){const u=i/24,chord=2.65*Math.pow(1-v,.72)+.035,camber=.32*Math.sin(Math.PI*u)*Math.sin(Math.PI*(v*.75+.12));pts.push(new THREE.Vector3(-chord*u,1.15+v*5.65,camber+.006));}sailGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),seamMat));}
+  const edgeMat=new THREE.LineBasicMaterial({color:0xf2b85b,transparent:true,opacity:.95});
+  for(const u of [0,1]){const pts=[];for(let j=0;j<=30;j++){const v=j/30,chord=2.65*Math.pow(1-v,.72)+.035,camber=.32*Math.sin(Math.PI*u)*Math.sin(Math.PI*(v*.75+.12));pts.push(new THREE.Vector3(-chord*u,1.15+v*5.65,camber+.008));}sailGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),edgeMat));}
+  boom=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,2.7,10),dark);boom.rotation.z=Math.PI/2;boom.position.set(-1.325,1.14,0);sailGroup.add(boom);
+  const keel=new THREE.Mesh(new THREE.BoxGeometry(1.05,1.85,.13),new THREE.MeshStandardMaterial({color:0x284d5d,metalness:.55,roughness:.32}));keel.position.set(.1,-.9,0);keel.rotation.z=-.12;boat.add(keel);
+  const bulb=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.9,4,8),dark);bulb.rotation.z=Math.PI/2;bulb.position.set(.15,-1.83,0);boat.add(bulb);
+  rudderMesh=new THREE.Group();rudderMesh.position.set(-2.05,-.52,0);const blade=new THREE.Mesh(new THREE.BoxGeometry(.65,1.25,.09),new THREE.MeshStandardMaterial({color:0x315767,metalness:.45,roughness:.35}));blade.position.set(-.25,-.42,0);rudderMesh.add(blade);boat.add(rudderMesh);
+  const railMat=new THREE.LineBasicMaterial({color:0x91b2bb,transparent:true,opacity:.55});for(const side of [-1,1]){const pts=sections.map(([x,w,top])=>new THREE.Vector3(x,top+.13,side*w*.96));boat.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),railMat));}
+}
+function lineBox(size,color,opacity){const geo=new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x,size.y,size.z));return new THREE.LineSegments(geo,new THREE.LineBasicMaterial({color,transparent:true,opacity}));}
+function buildEnvironment(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x06121a);scene.fog=new THREE.FogExp2(0x06121a,.018);
+  camera=new THREE.PerspectiveCamera(42,1,.05,500);renderer=new THREE.WebGLRenderer({canvas:$('scene'),antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
+  controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.07;controls.maxPolarAngle=Math.PI*.495;controls.minDistance=3;controls.maxDistance=100;controls.screenSpacePanning=true;
+  scene.add(new THREE.HemisphereLight(0x8fc9dc,0x071018,1.25));const sun=new THREE.DirectionalLight(0xfff1d5,2.0);sun.position.set(-8,16,10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-16;sun.shadow.camera.right=16;sun.shadow.camera.top=16;sun.shadow.camera.bottom=-16;scene.add(sun);const rim=new THREE.DirectionalLight(0x3bcce5,1.3);rim.position.set(10,5,-12);scene.add(rim);
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(250,250),new THREE.MeshStandardMaterial({color:0x06131c,roughness:.92,metalness:.1}));floor.rotation.x=-Math.PI/2;floor.position.y=-2.65;floor.receiveShadow=true;scene.add(floor);
+  const waterMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{uTime:{value:0},uUnder:{value:0}},vertexShader:`uniform float uTime;varying vec3 vWorld;varying float vWave;void main(){vec3 p=position;float w=sin(p.x*.72+uTime*.7)*.018+sin(p.y*1.1-uTime*.5)*.012;p.z+=w;vWave=w;vec4 world=modelMatrix*vec4(p,1.);vWorld=world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,fragmentShader:`uniform float uUnder;varying vec3 vWorld;varying float vWave;void main(){vec3 V=normalize(cameraPosition-vWorld);float fres=pow(1.-abs(V.y),3.);float line=pow(max(0.,sin(vWorld.x*5.+vWorld.z*3.+vWave*90.)),28.)*.045;vec3 col=mix(vec3(.025,.15,.20),vec3(.08,.34,.40),fres)+line;float alpha=mix(.69,.20,uUnder);gl_FragColor=vec4(col,alpha);}`});
+  const wg=new THREE.PlaneGeometry(32,20,70,44);water=new THREE.Mesh(wg,waterMat);water.rotation.x=-Math.PI/2;water.position.y=0;scene.add(water);
+  waterFree=new THREE.Mesh(new THREE.PlaneGeometry(240,240,100,100),waterMat);waterFree.rotation.x=-Math.PI/2;waterFree.visible=false;scene.add(waterFree);
+  basin=new THREE.Group();scene.add(basin);const edge=lineBox({x:32,y:2.6,z:20},0x2a5869,.48);edge.position.y=-1.3;basin.add(edge);
+  const marks=[];for(let x=-16;x<=16;x++){const major=x%4===0,len=major?.65:.32;marks.push(x,.025,-10,x,.025,-10+len,x,.025,10,x,.025,10-len);}for(let z=-10;z<=10;z++){const major=z%5===0,len=major?.65:.32;marks.push(-16,.025,z,-16+len,.025,z,16,.025,z,16-len,.025,z);}const mg=new THREE.BufferGeometry();mg.setAttribute('position',new THREE.Float32BufferAttribute(marks,3));basin.add(new THREE.LineSegments(mg,new THREE.LineBasicMaterial({color:0x4d8a9b,transparent:true,opacity:.55})));
+  tunnel=lineBox({x:29,y:9,z:17},0x3a9aad,.19);tunnel.position.y=4.45;scene.add(tunnel);
+  makeBoat();
+  const colors={true:0x79aaff,apparent:0x55d9e8,lift:0x72d6a0,drag:0xf2b85b,total:0xf2f5f6,keel:0xc7a0ff};for(const [name,color] of Object.entries(colors)){const a=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),1,color,.18,.09);a.line.material.transparent=true;a.line.material.opacity=.9;a.cone.material.transparent=true;a.cone.material.opacity=.9;scene.add(a);arrows[name]=a;}
+  initFlow();const trackGeo=new THREE.BufferGeometry();trackGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(CONFIG.trackMax*3),3));trackGeo.setDrawRange(0,0);trackLine=new THREE.Line(trackGeo,new THREE.LineBasicMaterial({color:0x55d9e8,transparent:true,opacity:.48}));scene.add(trackLine);
+  setCamera('perspective',true);
+}
+function rand(){flowSeed=(flowSeed*1664525+1013904223)>>>0;return flowSeed/4294967296;}
+function initFlow(){
+  const geo=new THREE.BufferGeometry(),positions=new Float32Array(MAX_FLOW*3);geo.setAttribute('position',new THREE.BufferAttribute(positions,3));geo.setDrawRange(0,params.density);flowPoints=new THREE.Points(geo,new THREE.PointsMaterial({color:0x8de9f2,size:.035,transparent:true,opacity:.75,sizeAttenuation:true,depthWrite:false}));scene.add(flowPoints);
+  const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(MAX_FLOW*6),3));lg.setDrawRange(0,params.density*2);flowLines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:0x55c7da,transparent:true,opacity:.20,depthWrite:false}));scene.add(flowLines);
+  resetFlow();
+}
+function resetFlow(){flowSeed=137;flow=[];flowPrev=[];for(let i=0;i<MAX_FLOW;i++){const p=V((rand()-.5)*30,(rand()-.5)*18);flow.push(p);flowPrev.push({...p});}}
+function airflowVelocity(world,air){
+  const rel=toBody(sub(world,V(state.x,state.y)),state.heading),ce=CONFIG.sailCE;
+  const q=V(rel.x-ce.x,rel.y-ce.y),chord=V(-Math.cos(params.trim),Math.sin(params.trim)),normal=V(-chord.y,chord.x);
+  const along=dot(q,chord),dist=dot(q,normal),near=Math.exp(-dist*dist/1.2-along*along/18);
+  const effective=latest?clamp(Math.abs(latest.aero.CL)/CONFIG.sailCLMax+.25*latest.aero.stallSeverity,0,1):.5;
+  const deflect=mul(normal,-Math.sign(dist||1)*mag(air)*.22*near*effective);
+  const downstream=dot(sub(world,V(state.x,state.y)),norm(air)),crossDist=Math.abs(cross(norm(air),sub(world,V(state.x,state.y))));
+  const stall=latest?latest.aero.stallSeverity:0,wake=stall*Math.exp(-crossDist*crossDist/7)*clamp(downstream/3,0,1)*Math.exp(-Math.max(0,downstream)/25);
+  const side=V(-air.y,air.x),osc=Math.sin(downstream*1.8+state.time*4.1+crossDist*.8)*wake*.22;
+  return add(add(air,deflect),mul(side,osc));
+}
+function updateFlow(dt,air){
+  const center=V(state.x,state.y),positions=flowPoints.geometry.attributes.position.array,lines=flowLines.geometry.attributes.position.array;
+  for(let i=0;i<params.density;i++){
+    let p=flow[i];flowPrev[i].x=p.x;flowPrev[i].y=p.y;const v=airflowVelocity(p,air);p.x+=v.x*dt;p.y+=v.y*dt;
+    const dx=p.x-center.x,dy=p.y-center.y;
+    if(Math.abs(dx)>17||Math.abs(dy)>11||mag(air)<.03){const f=norm(air),side=V(-f.y,f.x);p=flow[i]=add(add(center,mul(f,-15-rand()*2)),mul(side,(rand()-.5)*20));}
+    positions[i*3]=p.x;positions[i*3+1]=.6+(i%7)*.68;positions[i*3+2]=-p.y;
+    const old=flowPrev[i];lines[i*6]=old.x;lines[i*6+1]=positions[i*3+1];lines[i*6+2]=-old.y;lines[i*6+3]=positions[i*3];lines[i*6+4]=positions[i*3+1];lines[i*6+5]=positions[i*3+2];
+  }
+  flowPoints.geometry.attributes.position.needsUpdate=true;flowLines.geometry.attributes.position.needsUpdate=true;
+}
+function setArrow(a,origin,vector,scale,visible=true){const len=mag(vector)*scale;a.visible=visible&&len>.025;if(!a.visible)return;a.position.copy(m3(origin));a.setDirection(m3(norm(vector)).normalize());a.setLength(len,Math.min(.24,len*.22),Math.min(.12,len*.11));}
+function updateScene(air){
+  boat.position.set(state.x,0,-state.y);boat.rotation.set(state.heel,-state.heading,0,'YXZ');
+  sailGroup.rotation.y=-params.trim;rudderMesh.rotation.y=params.rudder;
+  water.material.uniforms.uTime.value=state.time;water.material.uniforms.uUnder.value=params.underwater?1:0;
+  water.visible=params.mode==='fixed';waterFree.visible=params.mode==='free';basin.visible=params.mode==='fixed';tunnel.visible=params.mode==='fixed';
+  const ceWorld=add(V(state.x,state.y),toWorld(V(CONFIG.sailCE.x,CONFIG.sailCE.y),state.heading));
+  const keelWorld=add(V(state.x,state.y),toWorld(V(CONFIG.keelPos.x,CONFIG.keelPos.y),state.heading));
+  const trueOrigin=add(ceWorld,mul(norm(air),-5)),aw=latest?latest.aero:null;
+  setArrow(arrows.true,{x:trueOrigin.x,y:trueOrigin.y,z:5.6},air,CONFIG.windScale,params.showForces);
+  if(aw){setArrow(arrows.apparent,{x:ceWorld.x,y:ceWorld.y,z:CONFIG.sailCE.z},toWorld(aw.apparent,state.heading),CONFIG.windScale,params.showForces);setArrow(arrows.lift,{x:ceWorld.x,y:ceWorld.y,z:CONFIG.sailCE.z},toWorld(aw.liftVector,state.heading),CONFIG.forceScale,params.showForces);setArrow(arrows.drag,{x:ceWorld.x,y:ceWorld.y,z:CONFIG.sailCE.z},toWorld(aw.dragVector,state.heading),CONFIG.forceScale,params.showForces);setArrow(arrows.total,{x:ceWorld.x,y:ceWorld.y,z:CONFIG.sailCE.z},toWorld(aw.force,state.heading),CONFIG.forceScale,params.showForces);setArrow(arrows.keel,{x:keelWorld.x,y:keelWorld.y,z:CONFIG.keelPos.z},toWorld(latest.keel.force,state.heading),CONFIG.forceScale,params.showForces);}
+  flowPoints.visible=params.showFlow;flowLines.visible=params.showFlow;trackLine.visible=params.showTrack&&params.mode==='free';
+  if(params.mode==='free'&&params.showTrack){const a=trackLine.geometry.attributes.position.array;for(let i=0;i<track.length;i++){a[i*3]=track[i].x;a[i*3+1]=.035;a[i*3+2]=-track[i].y;}trackLine.geometry.setDrawRange(0,track.length);trackLine.geometry.attributes.position.needsUpdate=true;}
+  if(cameraTween){const t=clamp((performance.now()-cameraTween.start)/550,0,1),e=1-Math.pow(1-t,3);camera.position.lerpVectors(cameraTween.from,cameraTween.to,e);controls.target.lerpVectors(cameraTween.targetFrom,cameraTween.targetTo,e);if(t===1)cameraTween=null;}
+  if(params.mode==='free'&&!cameraTween){const delta=V(state.x-controls.target.x,-(state.y+controls.target.z));camera.position.x+=delta.x;camera.position.z+=delta.y;controls.target.x=state.x;controls.target.z=-state.y;}
+  controls.update();
+}
+function setCamera(name,instant=false){
+  params.camera=name;$('camera-label').textContent=name.toUpperCase()+' · ORBIT / PAN / ZOOM';
+  const targets={perspective:{p:[12,8,14],t:[0,1.8,0]},overhead:{p:[0,23,.01],t:[0,0,0]},stern:{p:[-11,4,8],t:[0,1.5,0]},sail:{p:[5.5,4.5,6],t:[0,3.2,0]}},c=targets[name];
+  const offset=params.mode==='free'?V(state.x,state.y):V(),to=new THREE.Vector3(c.p[0]+offset.x,c.p[1],c.p[2]-offset.y),target=new THREE.Vector3(c.t[0]+offset.x,c.t[1],c.t[2]-offset.y);
+  if(instant){camera.position.copy(to);controls.target.copy(target);controls.update();}else cameraTween={from:camera.position.clone(),to,targetFrom:controls.target.clone(),targetTo:target,start:performance.now()};
+}
+function fmt(v,d=1){return Number.isFinite(v)?v.toFixed(d):'—';}
+function updateUI(air){
+  if(!latest)return;const a=latest.aero,speedKnots=latest.speed*1.943844,bodyV=toBody(V(state.vx,state.vy),state.heading);
+  const awa=a.speed>.03?wrap(Math.atan2(-a.apparent.y,-a.apparent.x)-params.trim*0):0;
+  const awaBow=a.speed>.03?deg(wrap(Math.atan2(-a.apparent.y,-a.apparent.x))):0;
+  $('r-tws').innerHTML=fmt(mag(air),1)+' <small>m/s</small>';$('r-aws').innerHTML=fmt(a.speed,1)+' <small>m/s</small>';
+  $('r-awa').innerHTML=a.speed>.03?fmt(awaBow,0)+'<small>°</small>':'—';$('r-speed').innerHTML=fmt(speedKnots,2)+' <small>kn</small>';
+  $('r-heading').innerHTML=fmt((deg(state.heading)+360)%360,0)+'<small>°</small>';$('r-leeway').innerHTML=latest.speed>.15?fmt(deg(Math.atan2(bodyV.y,bodyV.x)),1)+'<small>°</small>':'—';
+  $('r-aoa').innerHTML=a.speed>.03?fmt(deg(a.alpha),1)+'<small>°</small>':'—';$('r-heel').innerHTML=fmt(deg(state.heel),1)+'<small>°</small>';
+  $('r-lift').innerHTML=fmt(a.lift,0)+' <small>N</small>';$('r-drag').innerHTML=fmt(a.drag,0)+' <small>N</small>';$('r-drive').innerHTML=fmt(a.drive,0)+' <small>N · body +x</small>';
+  $('r-state').textContent=Math.abs(state.heel)>CONFIG.heelWarn?'heel beyond valid range':a.state;$('r-state').style.color=Math.abs(state.heel)>CONFIG.heelWarn?'var(--red)':'';$('state-dot').style.background=a.state==='stalled'?'var(--red)':a.state==='approaching stall'?'var(--amber)':a.state==='luffing'?'#8296a0':'var(--green)';
+  $('chart-speed').textContent=fmt(speedKnots,2)+' kn';$('chart-heel').textContent=fmt(deg(state.heel),1)+'°';$('sim-clock').textContent='T+ '+String(Math.floor(state.time/60)).padStart(2,'0')+':'+(state.time%60).toFixed(1).padStart(4,'0');
+  $('run-status').textContent=params.playing?'Simulation live':'Simulation paused';$('run-status').className='pill '+(params.playing?'live':'paused');$('play').textContent=params.playing?'Pause':'Play';
+  $('rig-note').textContent=params.mode==='fixed'?'Test-rig reactions balance all aerodynamic forces and moments; boat translation and rotation are constrained.':'Free body · still water · follow camera active. Boundary at 105 m pauses the solver.';
+  $('scene-mode').textContent=params.mode==='fixed'?'FIXED TEST 01':'FREE SAILING 02';
+  for(const id of ['wind-speed','wind-dir','gust','trim','rudder','heading','mass','density']){const e=$(id);let val=+e.value,suffix='';if(id==='wind-speed')suffix=' m/s';if(id==='wind-dir'||id==='heading'||id==='trim'||id==='rudder')suffix='°';if(id==='gust'){val=Math.round(val*100);suffix='%';}if(id==='mass')suffix=' kg';if(id==='density')suffix=' pts';$(id+'-value').textContent=(id==='gust'?val:val)+suffix;}
+  $('heading').disabled=params.mode==='free';drawCharts();
+}
+function drawCharts(){for(const [id,key,color,unit,maxFixed] of [['speed-chart','speed','#55d9e8',1.943844,8],['heel-chart','heel','#f2b85b',180/Math.PI,20]]){const c=$(id),rect=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio,2);if(c.width!==Math.round(rect.width*dpr)||c.height!==Math.round(rect.height*dpr)){c.width=Math.round(rect.width*dpr);c.height=Math.round(rect.height*dpr);}const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#17313d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,h/2+.5);ctx.lineTo(w,h/2+.5);ctx.stroke();if(charts.length<2)continue;const vals=charts.map(d=>d[key]*unit),max=Math.max(maxFixed,...vals.map(v=>Math.abs(v)))*1.1;ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();charts.forEach((d,i)=>{const x=(d.time-charts[0].time)/30*w,y=h/2-d[key]*unit/max*(h*.43);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();ctx.fillStyle='#52727f';ctx.font='8px '+getComputedStyle(document.documentElement).getPropertyValue('--mono');ctx.fillText('+'+max.toFixed(0),2,9);ctx.fillText('−'+max.toFixed(0),2,h-2);}}
+function syncParams(){params.windSpeed=+$('wind-speed').value;params.windDir=rad(+$('wind-dir').value);params.gust=+$('gust').value;params.gustEnabled=$('gust-enabled').checked;params.trim=rad(+$('trim').value);params.rudder=rad(+$('rudder').value);params.mass=+$('mass').value;params.density=+$('density').value;params.showFlow=$('show-flow').checked;params.showForces=$('show-forces').checked;params.showTrack=$('show-track').checked;params.underwater=$('underwater').checked;flowPoints.geometry.setDrawRange(0,params.density);flowLines.geometry.setDrawRange(0,params.density*2);}
+function showNotice(title,text){params.playing=false;$('notice-title').textContent=title;$('notice-text').textContent=text;$('notice').classList.add('show');}
+function reset(){state=initialState(params);accumulator=0;charts=[];chartSample=0;track=[];boundaryStopped=false;params.playing=true;$('notice').classList.remove('show');resetFlow();latest=computeDynamics(state,params,trueWind(params,0));updateScene(trueWind(params,0));updateUI(trueWind(params,0));}
+function switchMode(mode){if(params.mode===mode)return;params.mode=mode;params.heading=rad(+$('heading').value);$('mode-fixed').classList.toggle('active',mode==='fixed');$('mode-free').classList.toggle('active',mode==='free');reset();setCamera(params.camera,true);}
+function applyPreset(name){
+  const presets={beam:{wind:8,dir:80,trim:-55,rudder:0,heading:0,gust:.18,gustOn:false,mode:'fixed',text:'Observe lift resolve into a forward component while the fixed rig reacts the lateral load.'},close:{wind:10,dir:35,trim:-14,rudder:0,heading:0,gust:.12,gustOn:false,mode:'free',text:'The boat accelerates obliquely into the wind; watch leeway, heel, and the keel balancing lateral force.'},downwind:{wind:12,dir:180,trim:-85,rudder:0,heading:0,gust:.08,gustOn:false,mode:'free',text:'At broadside incidence lift washes out and pressure drag supplies the downwind drive.'},stall:{wind:10,dir:105,trim:-10,rudder:0,heading:0,gust:0,gustOn:false,mode:'fixed',text:'Excessive incidence stalls the sail: lift falls, drag rises, and the illustrative wake becomes disturbed.'},gust:{wind:9,dir:70,trim:-45,rudder:0,heading:0,gust:.5,gustOn:true,mode:'free',text:'Smooth gusts increase heeling moment; roll inertia and damping lag the response, then restoring moment recovers heel.'}};
+  const p=presets[name];$('wind-speed').value=p.wind;$('wind-dir').value=p.dir;$('trim').value=p.trim;$('rudder').value=p.rudder;$('heading').value=p.heading;$('gust').value=p.gust;$('gust-enabled').checked=p.gustOn;syncParams();params.mode=p.mode;$('mode-fixed').classList.toggle('active',p.mode==='fixed');$('mode-free').classList.toggle('active',p.mode==='free');reset();setCamera('perspective');$('observation').innerHTML='<b>Observation · </b>'+p.text;$('observation').classList.add('show');clearTimeout(applyPreset.timer);applyPreset.timer=setTimeout(()=>$('observation').classList.remove('show'),9000);
+}
+function bindUI(){
+  for(const id of ['wind-speed','wind-dir','gust','trim','rudder','heading','mass','density'])$(id).addEventListener('input',()=>{if(id==='heading'&&params.mode==='fixed'){params.heading=rad(+$('heading').value);state.heading=params.heading;}syncParams();});
+  for(const id of ['gust-enabled','show-flow','show-forces','show-track','underwater'])$(id).addEventListener('change',syncParams);
+  $('mode-fixed').onclick=()=>switchMode('fixed');$('mode-free').onclick=()=>{params.heading=rad(+$('heading').value);switchMode('free');};$('play').onclick=()=>{params.playing=!params.playing;boundaryStopped=false;$('notice').classList.remove('show');};$('reset').onclick=()=>{params.heading=rad(+$('heading').value);reset();};$('notice-reset').onclick=reset;
+  document.querySelectorAll('[data-speed]').forEach(b=>b.onclick=()=>{params.speed=+b.dataset.speed;document.querySelectorAll('[data-speed]').forEach(x=>x.classList.toggle('active',x===b));});
+  document.querySelectorAll('[data-camera]').forEach(b=>b.onclick=()=>setCamera(b.dataset.camera));document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
+  document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-panel]').forEach(x=>x.classList.toggle('active',x===b));$('workspace').classList.remove('controls-open','instruments-open');$('controls-panel').classList.remove('mobile-active');$('instruments-panel').classList.remove('mobile-active');if(b.dataset.panel==='controls'){$('workspace').classList.add('controls-open');$('controls-panel').classList.add('mobile-active');}if(b.dataset.panel==='instruments'){$('workspace').classList.add('instruments-open');$('instruments-panel').classList.add('mobile-active');}});
+  addEventListener('keydown',e=>{if(e.target.matches('input,button'))return;if(e.code==='Space'){e.preventDefault();$('play').click();}if(e.key.toLowerCase()==='r')$('reset').click();});
+}
+function runPhysicsChecks(){
+  const results=[];const test=(name,pass)=>results.push({name,pass:!!pass});
+  const p={...params,mass:900,heading:0,trim:rad(-30),rudder:0},s=initialState(p);
+  let z=sailForces(V(),V(),p.trim);test('Zero apparent wind → zero sail force',mag(z.force)===0);
+  const air=V(-6,-8),f1=sailForces(air,V(),p.trim),f2=sailForces(mul(air,2),V(),p.trim),ratio=mag(f2.force)/mag(f1.force);test('2× apparent wind → ~4× force',Math.abs(ratio-4)<1e-9);
+  test('Sail drag follows relative airflow',dot(f1.dragVector,f1.apparent)>0&&Math.abs(cross(f1.dragVector,f1.apparent))<1e-9*mag(f1.dragVector)*mag(f1.apparent));
+  const h=foilForce(V(-3,0),V(-1,0),CONFIG.keelArea,CONFIG.keelCD0);test('Hydro drag opposes water-relative motion',dot(h.dragVector,V(-3,0))>0&&dot(h.dragVector,V(3,0))<0&&h.force.x<0);
+  const pa={...p,trim:rad(-20)},pb={...p,trim:rad(20)},mirrorAir=V(-6,8),fa=sailForces(V(-6,-8),V(),pa.trim),fb=sailForces(mirrorAir,V(),pb.trim);test('Mirror reverses side, preserves drive',Math.abs(fa.force.y+fb.force.y)<1e-8&&Math.abs(fa.force.x-fb.force.x)<1e-8);
+  const still=initialState(p),d0=computeDynamics(still,p,V());test('Still air & water → no acceleration',mag(d0.totalW)===0);
+  const rud=foilForce(V(0,0),V(-1,-.2),CONFIG.rudderArea,CONFIG.rudderCD0);test('No rudder flow → negligible force',mag(rud.force)===0);
+  function framed(frameDt){let st=initialState(p),acc=0;for(let t=0;t<8-1e-12;t+=frameDt){acc+=frameDt;let n=0;while(acc>=CONFIG.dt-1e-12&&n<1000){integrateOne(st,p,CONFIG.dt);acc-=CONFIG.dt;n++;}}return st;}
+  const f30=framed(1/30),f144=framed(1/144),error=Math.abs(f30.x-f144.x)+Math.abs(f30.y-f144.y)+Math.abs(f30.heading-f144.heading)+Math.abs(f30.heel-f144.heel);test('30 Hz vs 144 Hz render pacing',error<1e-8);
+  $('physics-checks').innerHTML=results.map(r=>'<div class="check-result"><span class="'+(r.pass?'pass':'fail')+'">'+(r.pass?'PASS':'FAIL')+'</span><span>'+r.name+'</span></div>').join('');return results;
+}
+function resize(){const v=$('viewport'),w=v.clientWidth,h=v.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+function animate(now){requestAnimationFrame(animate);const elapsed=lastTime?Math.min((now-lastTime)/1000,CONFIG.maxFrame):0;lastTime=now;
+  if(params.playing){accumulator+=elapsed*params.speed;let steps=0;try{while(accumulator>=CONFIG.dt&&steps<CONFIG.maxSteps){if(params.mode==='free'){latest=integrateOne(state,params,CONFIG.dt);}else{state.time+=CONFIG.dt;latest=computeDynamics(state,params,trueWind(params,state.time));}accumulator-=CONFIG.dt;steps++;const air=trueWind(params,state.time);updateFlow(CONFIG.dt,air);if(state.time-chartSample>=.1){chartSample=state.time;charts.push({time:state.time,speed:latest.speed,heel:state.heel});while(charts.length&&charts[0].time<state.time-30)charts.shift();}if(params.mode==='free'&&(steps%6===0)){track.push(V(state.x,state.y));if(track.length>CONFIG.trackMax)track.shift();}if(params.mode==='free'&&Math.hypot(state.x,state.y)>CONFIG.boundary){params.playing=false;boundaryStopped=true;showNotice('Basin boundary reached','The free-sailing solver paused at 105 m. No teleport or hidden boundary force was applied. Reset to run again.');break;}if(params.mode==='free'&&Math.abs(state.heel)>CONFIG.heelStop){params.playing=false;showNotice('Heel limit exceeded','Heel exceeded 60°, outside this reduced-order model. The solver paused rather than simulating capsize. Reset or reduce wind.');break;}}}catch(err){params.playing=false;showNotice('Numerical safety stop',err.message+'. Reset the experiment to restore a deterministic state.');console.error(err);}if(steps===CONFIG.maxSteps)accumulator=Math.min(accumulator,CONFIG.dt);}
+  const air=trueWind(params,state.time);if(!latest)latest=computeDynamics(state,params,air);updateScene(air);updateUI(air);renderer.render(scene,camera);
+}
+function boot(){if(window.cdnFailed||!window.THREE||!THREE.OrbitControls){fatal('The pinned Three.js scripts could not load. An internet connection is required on first open; no other assets are needed.');return;}try{buildEnvironment();}catch(err){fatal('WebGL could not initialize. Enable hardware acceleration or try a current desktop browser. '+err.message);console.error(err);return;}bindUI();syncParams();latest=computeDynamics(state,params,trueWind(params,0));resize();new ResizeObserver(resize).observe($('viewport'));runPhysicsChecks();updateUI(trueWind(params,0));requestAnimationFrame(animate);window.lab={CONFIG,params,get state(){return state},computeDynamics,sailForces,foilForce,integrateOne,runPhysicsChecks,reset};}
+setTimeout(()=>{if(!renderer&&!$('fatal').classList.contains('show'))boot();},6000);boot();
+</script>
+</body>
+</html>
