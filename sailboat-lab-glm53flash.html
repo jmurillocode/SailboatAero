@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AERONAUT · Sailing Physics Lab</title>
+<style>
+  :root{
+    --bg:#081018; --panel:rgba(9,20,32,.86); --panel-line:rgba(80,160,200,.22);
+    --text:#cfe6f2; --muted:#7fa3b8; --cyan:#41d9ff; --amber:#ffb454;
+    --green:#7dffb0; --red:#ff7a6b; --purple:#b48cff; --slate:#8fb3c9; --yellow:#ffd166;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas.webgl{position:fixed;inset:0;display:block}
+  .panel{position:fixed;z-index:10;background:var(--panel);border:1px solid var(--panel-line);border-radius:10px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.45)}
+  /* ---- top bar ---- */
+  #topbar{top:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;padding:6px 10px;max-width:94vw;flex-wrap:wrap;justify-content:center}
+  #topbar .title{font-weight:700;letter-spacing:.14em;font-size:12px;color:var(--cyan);margin-right:8px;white-space:nowrap}
+  #topbar .title small{color:var(--muted);letter-spacing:.05em;font-weight:400}
+  .btn{background:rgba(65,217,255,.08);border:1px solid var(--panel-line);color:var(--text);border-radius:6px;
+    padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;transition:background .15s,border-color .15s}
+  .btn:hover{background:rgba(65,217,255,.18)}
+  .btn.active{background:rgba(65,217,255,.28);border-color:var(--cyan);color:#eaffff}
+  .btn.warn{border-color:rgba(255,180,84,.5);color:var(--amber)}
+  .btn.warn:hover{background:rgba(255,180,84,.15)}
+  .seg{display:flex;gap:2px}
+  .seg .btn{border-radius:0}.seg .btn:first-child{border-radius:6px 0 0 6px}.seg .btn:last-child{border-radius:0 6px 6px 0}
+  /* ---- side panels ---- */
+  #left{left:10px;top:56px;width:284px;max-height:calc(100vh - 150px);overflow-y:auto;padding:10px 12px 12px}
+  #right{right:10px;top:56px;width:308px;max-height:calc(100vh - 150px);overflow-y:auto;padding:10px 12px 12px}
+  #left h3,#right h3{margin:2px 0 8px;font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;font-weight:600}
+  details{border:1px solid var(--panel-line);border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+  details summary{cursor:pointer;padding:7px 10px;font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--cyan);list-style:none;user-select:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ ";color:var(--muted)} details[open] summary::before{content:"▾ "}
+  details .body{padding:2px 10px 10px}
+  .ctl{display:flex;align-items:center;gap:8px;margin:7px 0}
+  .ctl label{flex:0 0 110px;font-size:12px;color:var(--text)}
+  .ctl input[type=range]{flex:1;accent-color:var(--cyan);height:18px;min-width:52px}
+  .ctl .val{flex:0 0 68px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--cyan)}
+  .ctl select,.ctl input[type=number]{background:#0b1a28;color:var(--text);border:1px solid var(--panel-line);border-radius:5px;padding:3px 6px;font:inherit;font-size:12px}
+  .note{font-size:11px;color:var(--muted);margin:4px 0 2px}
+  /* ---- instruments ---- */
+  #instGrid{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:12px}
+  #instGrid .k{color:var(--muted)} #instGrid .v{font-family:var(--mono);text-align:right;color:var(--text);white-space:nowrap}
+  #instGrid .v.hi{color:var(--cyan)} #instGrid .v.amb{color:var(--amber)}
+  #stateBadge{display:inline-block;margin:8px 0 2px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.08em;
+    background:rgba(125,255,176,.12);color:var(--green);border:1px solid rgba(125,255,176,.4)}
+  #stateBadge.st-approach{background:rgba(255,180,84,.12);color:var(--amber);border-color:rgba(255,180,84,.4)}
+  #stateBadge.st-stalled{background:rgba(255,122,107,.14);color:var(--red);border-color:rgba(255,122,107,.45)}
+  #stateBadge.st-luff{background:rgba(143,179,201,.12);color:var(--slate);border-color:rgba(143,179,201,.4)}
+  canvas.chart{width:100%;height:64px;display:block;border:1px solid var(--panel-line);border-radius:6px;background:rgba(0,0,0,.25);margin:4px 0 8px}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:11px;color:var(--muted)}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .legend .full{grid-column:1/-1}
+  table.checks{width:100%;border-collapse:collapse;font-size:11px}
+  table.checks td{padding:3px 4px;border-top:1px solid var(--panel-line);vertical-align:top}
+  table.checks td:first-child{color:var(--text)} table.checks td.num{font-family:var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+  .pass{color:var(--green);font-weight:700}.fail{color:var(--red);font-weight:700}
+  /* ---- banners / overlays ---- */
+  #modeBanner{bottom:12px;left:50%;transform:translateX(-50%);padding:6px 14px;font-size:12px;color:var(--muted);max-width:80vw;text-align:center}
+  #modeBanner b{color:var(--cyan)}
+  #alertBox{top:56px;left:50%;transform:translateX(-50%);padding:10px 18px;font-size:13px;display:none;z-index:30;
+    border-color:rgba(255,122,107,.6);color:#ffd9d4;max-width:70vw;text-align:center}
+  #alertBox .btn{margin-top:8px}
+  #presetNote{position:fixed;z-index:10;bottom:52px;left:50%;transform:translateX(-50%);max-width:640px;padding:8px 16px;
+    font-size:12.5px;color:var(--text);display:none;text-align:center}
+  #presetNote b{color:var(--amber)}
+  #errOverlay{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;align-items:center;justify-content:center;text-align:center;padding:40px}
+  #errOverlay .card{max-width:520px;border:1px solid var(--panel-line);border-radius:12px;padding:28px;background:var(--panel)}
+  #errOverlay h2{color:var(--amber);margin-top:0} #errOverlay code{color:var(--cyan)}
+  #togglePanes{display:none;position:fixed;z-index:12;bottom:12px;left:10px;gap:6px}
+  @media (max-width:1180px){
+    #left{transform:translateX(-110%);transition:transform .25s} #right{transform:translateX(110%);transition:transform .25s}
+    #left.open,#right.open{transform:none} #togglePanes{display:flex}
+  }
+  ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:rgba(80,160,200,.3);border-radius:4px}::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div id="errOverlay"><div class="card">
+  <h2 id="errTitle">Unable to start</h2><div id="errMsg">Initializing…</div>
+</div></div>
+
+<div id="topbar" class="panel">
+  <span class="title">AERONAUT <small>· Sailing Physics Lab</small></span>
+  <span class="seg" id="modeSeg">
+    <button class="btn active" id="btnFixed" title="Boat held on a test rig">Fixed rig</button>
+    <button class="btn" id="btnFree" title="Release the boat">Free sail</button>
+  </span>
+  <button class="btn" id="btnPlay">⏸ Pause</button>
+  <button class="btn" id="btnReset">↺ Reset</button>
+  <span class="seg" id="speedSeg">
+    <button class="btn" data-speed="0.25">.25×</button><button class="btn" data-speed="0.5">.5×</button>
+    <button class="btn active" data-speed="1">1×</button><button class="btn" data-speed="2">2×</button>
+  </span>
+  <span style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:4px" id="simClock">t = 0.0 s</span>
+</div>
+
+<div id="left" class="panel">
+  <h3>Guided experiments</h3>
+  <div style="display:flex;flex-wrap:wrap;gap:4px">
+    <button class="btn" data-preset="beam">1 · Beam reach</button>
+    <button class="btn" data-preset="hauled">2 · Close-hauled</button>
+    <button class="btn" data-preset="downwind">3 · Dead downwind</button>
+    <button class="btn" data-preset="stall">4 · Stall demo</button>
+    <button class="btn" data-preset="gust">5 · Gust response</button>
+  </div>
+  <div class="note" id="presetHint" style="margin-top:6px"></div>
+
+  <details open><summary>Environment</summary><div class="body">
+    <div class="ctl"><label>True wind speed</label><input type="range" id="inTws" min="0" max="20" step="0.1" value="7"><span class="val" id="vTws"></span></div>
+    <div class="ctl"><label>Wind from (°)</label><input type="range" id="inWdir" min="0" max="360" step="1" value="90"><span class="val" id="vWdir"></span></div>
+    <div class="ctl"><label>Gust strength</label><input type="range" id="inGust" min="0" max="0.8" step="0.05" value="0.30"><span class="val" id="vGust"></span></div>
+    <div class="ctl"><label>Gusts</label><button class="btn active" id="btnGust" style="flex:1">Gusting (deterministic)</button></div>
+    <div class="note">Wind direction is nautical <b>FROM</b>: 0° = from North, 90° = from East. 0° = from dead ahead of the boat’s initial heading.</div>
+  </div></details>
+
+  <details open><summary>Boat</summary><div class="body">
+    <div class="ctl"><label>Sail trim (boom)</label><input type="range" id="inTrim" min="-85" max="85" step="1" value="50"><span class="val" id="vTrim"></span></div>
+    <div class="ctl"><label>Rudder angle</label><input type="range" id="inRud" min="-30" max="30" step="1" value="0"><span class="val" id="vRud"></span></div>
+    <div class="ctl"><label>Heading</label><input type="range" id="inHdg" min="0" max="360" step="1" value="0"><span class="val" id="vHdg"></span></div>
+    <div class="ctl"><label>Boat mass</label><input type="range" id="inMass" min="900" max="4200" step="50" value="2200"><span class="val" id="vMass"></span></div>
+    <div class="note">Trim: + = boom to <b>starboard</b>. Rudder: + = bow turns to <b>starboard</b>. Heading is editable live in fixed mode; in free mode it applies on reset.</div>
+  </div></details>
+
+  <details><summary>View</summary><div class="body">
+    <div class="ctl"><label>Airflow</label><button class="btn active" id="btnFlow" style="flex:1">Visible</button></div>
+    <div class="ctl"><label>Particle density</label><input type="range" id="inPDens" min="0" max="2400" step="100" value="1100"><span class="val" id="vPDens"></span></div>
+    <div class="ctl"><label>Force vectors</label><button class="btn active" id="btnVec" style="flex:1">Visible</button></div>
+    <div class="ctl"><label>Wake / track</label><button class="btn active" id="btnTrack" style="flex:1">Visible</button></div>
+    <div class="ctl"><label>Underwater view</label><button class="btn" id="btnUw" style="flex:1">Off</button></div>
+    <div class="ctl"><label>Camera</label></div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      <button class="btn cam" data-cam="persp">Perspective</button>
+      <button class="btn cam" data-cam="over">Overhead</button>
+      <button class="btn cam" data-cam="stern">Stern</button>
+      <button class="btn cam" data-cam="sail">Sail close-up</button>
+    </div>
+  </div></details>
+</div>
+
+<div id="right" class="panel">
+  <h3>Instruments</h3>
+  <div id="instGrid">
+    <span class="k">True wind speed</span><span class="v" id="iTws">—</span>
+    <span class="k">Apparent wind speed</span><span class="v hi" id="iAws">—</span>
+    <span class="k">Apparent wind angle</span><span class="v hi" id="iAwa">—</span>
+    <span class="k">Boat speed</span><span class="v" id="iBsp">—</span>
+    <span class="k">Heading</span><span class="v" id="iHdg">—</span>
+    <span class="k">Leeway angle</span><span class="v" id="iLee">—</span>
+    <span class="k">Sail angle of attack</span><span class="v" id="iAoa">—</span>
+    <span class="k">Sail lift</span><span class="v" id="iLift">—</span>
+    <span class="k">Sail drag</span><span class="v" id="iDrag">—</span>
+    <span class="k">Forward driving force</span><span class="v amb" id="iFwd">—</span>
+    <span class="k">Heel angle</span><span class="v" id="iHeel">—</span>
+  </div>
+  <div id="stateBadge">ATTACHED FLOW</div>
+  <div class="note" id="rigNote"></div>
+
+  <h3 style="margin-top:10px">Last 30 s</h3>
+  <div class="note">Boat speed (kn)</div><canvas class="chart" id="chartSpeed"></canvas>
+  <div class="note">Heel (°, + = starboard)</div><canvas class="chart" id="chartHeel"></canvas>
+
+  <details open><summary>Vector legend</summary><div class="body"><div class="legend">
+    <span><i style="background:#9fd8ff"></i>True wind</span><span><i style="background:var(--cyan)"></i>Apparent wind</span>
+    <span><i style="background:var(--green)"></i>Sail lift</span><span><i style="background:var(--red)"></i>Sail drag</span>
+    <span><i style="background:var(--amber)"></i>Total aero force</span><span><i style="background:var(--purple)"></i>Keel force</span>
+    <span class="full" style="margin-top:4px">Force arrows at their application points · scale 1 m ≙ 600 N, clamped 0.25–3.5 m · wind arrows 1 m ≙ 4 m/s of air speed, drawn in the direction the air travels.</span>
+  </div></div></details>
+
+  <details><summary>Model &amp; conventions</summary><div class="body">
+    <div class="note" id="modelInfo"></div>
+  </div></details>
+
+  <details><summary>Physics checks</summary><div class="body">
+    <button class="btn" id="btnChecks">Run checks</button>
+    <div id="checksOut" style="margin-top:8px"></div>
+  </div></details>
+</div>
+
+<div id="togglePanes">
+  <button class="btn" id="tgLeft">Controls</button>
+  <button class="btn" id="tgRight">Instruments</button>
+</div>
+
+<div id="modeBanner" class="panel"></div>
+<div id="presetNote" class="panel"></div>
+<div id="alertBox" class="panel"></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+/* =====================================================================
+   AERONAUT · Sailing Physics Lab
+   Single-file Three.js application. Sections:
+     1. Configuration & conventions   2. Math helpers
+     3. Physics engine (forces + integration)
+     4. Scene, boat, water, airflow   5. UI, presets, checks, main loop
+   ---------------------------------------------------------------------
+   CONVENTIONS (SI units internally):
+   · World plane: +X = East, −Z = North, +Y up. Heading ψ (deg, compass):
+     0 = North; forward unit f = (sin ψ, −cos ψ); starboard s = f × up.
+   · Boat body frame 2-D: x' = forward, y' = starboard.
+   · Trim δ: + = boom eased to STARBOARD. Rudder δr: + = bow turns to
+     starboard. Heel φ: + = heeled to starboard. Leeway λ: + = sliding
+     to starboard. Apparent wind angle β: signed from bow, + = wind
+     comes FROM starboard. All angles degrees unless noted.
+   · Tack s = sign(β): −1 port, +1 starboard. Signed AoA α = s·(|β| − δ)
+     in degrees; |α| < 0 ⇒ backwinded ⇒ luffing (no lift).
+   · Airflow direction d2 = unit vector the air MOVES toward (boat frame).
+     lift_dir = s · perp_ccw(d2), verified on both tacks (see checks).
+   ===================================================================== */
+
+/* ------------------------------------------------------------------ */
+/* 1. CONFIGURATION — all tunables in one place                        */
+/* ------------------------------------------------------------------ */
+const CFG = {
+  physics: { dt: 1/120, maxSubsteps: 10, maxCatchup: 0.25 },
+  air:   { rho: 1.225 },
+  water: { rho: 1025, g: 9.81 },
+  sail:  { area: 14.0, ceFwd: -0.45, ceHeight: 6.2,      // geometry (CE slightly aft ⇒ mild weather helm)
+           clSlope: 0.095, stallDeg: 16, postDecay: 18, // lift model
+           cdMin: 0.045, cdLin: 0.0045, cdPlate: 1.95, stallRise: 22 },
+  keel:  { area: 1.15, xFwd: -0.5, belowCG: 1.0, clSlope: 0.075, stallDeg: 14,
+           postDecay: 22, cdMin: 0.02, cdLin: 0.0016, cdPlate: 1.6, stallRise: 30 },
+  rudder:{ area: 0.32, xFwd: -3.25, belowCG: 0.45, clSlope: 0.07, stallDeg: 15,
+           postDecay: 24, cdMin: 0.025, cdLin: 0.002, cdPlate: 1.5, stallRise: 30 },
+  hull:  { surgeLin: 22, surgeQuad: 105,     // N per (m/s) and per (m/s)^2
+           waveK: 45, hullSpeed: 3.4,        // wave-making wall: steep rise above hull speed
+           swayLin: 900, swayQuad: 2600,
+           yawDamp: 5200, rollDamp: 16000, heelDragGain: 0.35 },
+  boat:  { massMin: 900, massMax: 4200, GM: 1.35,
+           rollInertiaK: 2.3, yawInertiaK: 2.6,
+           heelWarnDeg: 25, heelLimitDeg: 40 },
+  world: { basinX: 65, basinZ: 32 },          // free-sailing boundary (±)
+  gustWave: [ [0.35, 0.60, 0.0], [0.9, 0.30, 1.7], [2.1, 0.10, 0.4] ], // ω, amp, phase
+};
+
+/* Inputs & mutable sim state --------------------------------------- */
+const input = { tws: 7, wdirFrom: 90, gustFrac: 0.30, gustOn: true,
+                trim: 50, rudder: 0, heading: 0, mass: 2200,
+                mode: 'fixed', simSpeed: 1, paused: false };
+
+function freshState(headingDeg = input.heading){
+  return { x: 0, z: 0, psi: rad(headingDeg),   // position + heading (rad)
+           u: 0, v: 0,                          // body velocities (fwd, stbd)
+           w: 0,                                // yaw rate ω (+ = starboard turn)
+           heel: 0, heelRate: 0,                // roll state (+ = starboard)
+           t: 0, nan: false, boundaryHit: false, heelLimitHit: false };
+}
+let S = null;   // created after math helpers below (needs rad())
+let last = { aero: null, hydro: null, aws: 0, awa: 0, leeway: 0, bsp: 0,
+             heelEq: 0, aeroState: 'attached', stallFactor: 0, fDrive: 0, lift: 0, drag: 0 };
+
+/* ------------------------------------------------------------------ */
+/* 2. MATH HELPERS                                                     */
+/* ------------------------------------------------------------------ */
+const rad  = d => d * Math.PI / 180;
+const deg  = r => r * 180 / Math.PI;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const wrapPi = a => { a = (a + Math.PI) % (2*Math.PI); if (a < 0) a += 2*Math.PI; return a - Math.PI; };
+function fwdVec(psi){ return { x: Math.sin(psi), z: -Math.cos(psi) }; }   // world
+function stbVec(psi){ return { x: Math.cos(psi), z:  Math.sin(psi) }; }
+const perpCCW = v => ({ x: -v.y, y: v.x });   // in body 2-D (x fwd, y stbd)
+function bodyToWorld(f2, psi){ const f = fwdVec(psi), s = stbVec(psi);
+  return { x: f2.x*f.x + f2.y*s.x, z: f2.x*f.z + f2.y*s.z }; }
+function worldToBody(w, psi){ const f = fwdVec(psi), s = stbVec(psi);
+  return { x: w.x*f.x + w.z*f.z, y: w.x*s.x + w.z*s.z }; }
+// deterministic pseudo-gust factor (unit mean, ±gustFrac)
+function gustFactor(t){
+  let g = 0;
+  for (const [om, amp, ph] of CFG.gustWave) g += amp * Math.sin(om * t + ph);
+  return 1 + input.gustFrac * g;
+}
+function trueWindWorld(t, inp = input){          // air velocity vector (m/s)
+  const th = rad(inp.wdirFrom), V = inp.tws * (inp.gustOn ? gustFactor(t) : 1);
+  return { x: -Math.sin(th) * V, z: Math.cos(th) * V }; // toward θ+180
+}
+S = freshState();
+
+/* ------------------------------------------------------------------ */
+/* 3. FOIL COEFFICIENTS — one cambered model (sail), one symmetric     */
+/*    model (keel/rudder). Both bounded, no singularities.             */
+/* ------------------------------------------------------------------ */
+// Cambered sail: linear small-angle rise, rounded stall at CFG.stallDeg,
+// then decay toward a flat-plate curve; drag rises to broadside ~2.
+function foilCL(alphaDeg, F){                     // F = section config
+  const a = Math.abs(alphaDeg), st = F.stallDeg;
+  const clLin = F.clSlope * a;                    // radians-consistent slope/deg
+  const clStall = F.clSlope * st;
+  const clFP = 0.9 * Math.sin(2 * rad(Math.min(a, 90)));  // flat-plate target ≤90°
+  if (a <= st) return Math.min(clLin, 1.55);
+  const w = Math.exp(-(a - st) / F.postDecay);    // 1 at stall → 0 deep
+  return (w * clStall + (1 - w) * clFP);
+}
+function foilCD(alphaDeg, F){
+  const a = Math.abs(alphaDeg), st = F.stallDeg;
+  const cdLin = F.cdMin + F.cdLin * a;
+  const s = smoothstep(st * 0.7, st * 1.8, a);    // 0 pre-stall → 1 separated
+  const cdPlate = F.cdPlate * Math.sin(rad(a)) ** 2;
+  return cdLin * (1 - s) + (F.cdMin + cdPlate) * s;
+}
+function smoothstep(e0, e1, x){ const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); }
+// Aerodynamic state label for the sail
+function aeroStateOf(alphaDeg, aws){
+  if (aws < 0.15) return { label: 'attached', stall: 0 };
+  if (alphaDeg < 0) return { label: 'luffing', stall: 0.5 };
+  const st = CFG.sail.stallDeg;
+  if (alphaDeg < st * 0.8)  return { label: 'attached', stall: 0 };
+  if (alphaDeg < st)        return { label: 'approaching stall', stall: 0.4 };
+  return { label: 'stalled', stall: clamp((alphaDeg - st) / 25, 0.4, 1) };
+}
+
+/* ------------------------------------------------------------------ */
+/* 3b. FORCE MODEL — computes all forces/moments for a state.          */
+/*  Pure function of (state, input, t) so physics checks can call it.  */
+/* ------------------------------------------------------------------ */
+function computeForces(st, inp, t, opts = {}){
+  const m = inp.mass;
+  const f = fwdVec(st.psi), s = stbVec(st.psi);
+  // world velocity of CG
+  const vel = { x: st.u * f.x + st.v * s.x, z: st.u * f.z + st.v * s.z };
+
+  /* --- Apparent wind at sail centre of effort ---------------------- */
+  // v_ce = v_cg + ω × r_ce ; in 2-D body: point (a,b) → vel + ω(b·f − a·s)
+  const aCE = CFG.sail.ceFwd, bCE = 0;
+  // rotation coupling: point velocity = v_cg + ω(a·ŝ − b·f̂) in body axes
+  // (stern, a<0, swings OPPOSITE the bow when yawing)
+  const vce = { x: vel.x + st.w * (aCE * s.x - bCE * f.x),
+                z: vel.z + st.w * (aCE * s.z - bCE * f.z) };
+  const air = trueWindWorld(t, inp);
+  const rel = { x: air.x - vce.x, z: air.z - vce.z };      // air vel − sail vel
+  const relB = worldToBody(rel, st.psi);                    // body frame
+  const aws = Math.hypot(relB.x, relB.y);
+  const d2 = aws > 1e-6 ? { x: relB.x / aws, y: relB.y / aws } : { x: 0, y: 0 };
+  const i2 = { x: -d2.x, y: -d2.y };                        // where wind comes FROM
+  const beta = Math.abs(aws) > 1e-6 ? deg(Math.atan2(i2.y, i2.x)) : 0; // signed from bow
+  const tack = Math.sign(beta) || 1;
+  // AoA is tack-folded: |β| − trim. Luffing (backwinded) iff |β| < |trim| —
+  // independent of tack. The tack sign picks the lift SIDE, not the AoA sign.
+  const excess = Math.abs(beta) - Math.abs(inp.trim);
+  const alpha = excess;                                     // signed (neg ⇒ luffing)
+  const aEff = Math.max(excess, 0);
+
+  /* --- Sail forces -------------------------------------------------- */
+  const qA = 0.5 * CFG.air.rho * aws * aws * CFG.sail.area;
+  const st8 = aeroStateOf(alpha, aws);
+  const cl = foilCL(aEff, CFG.sail);
+  const cd = alpha < 0 ? 0.15 : foilCD(alpha, CFG.sail);    // flapping drag
+  let liftDir = { x: tack * perpCCW(d2).x, y: tack * perpCCW(d2).y };
+  const Fx_b = qA * (cl * liftDir.x + cd * d2.x);           // body 2-D force
+  const Fy_b = qA * (cl * liftDir.y + cd * d2.y);
+  const lift = qA * cl, drag = qA * cd;
+
+  /* --- Keel (symmetric foil at leeway) ------------------------------ */
+  // local water velocity at keel incl. rotation: (u, v + ω·a), a = keel fwd offset
+  const vk = { x: st.u, y: st.v + st.w * CFG.keel.xFwd };
+  const vkm = Math.hypot(vk.x, vk.y);
+  const d2k = vkm > 1e-6 ? { x: -vk.x / vkm, y: -vk.y / vkm } : { x: 0, y: 0 };
+  const qwA_k = 0.5 * CFG.water.rho * vkm * vkm * CFG.keel.area;
+  const alphaK = vkm > 1e-6 ? deg(wrapPi(Math.atan2(d2k.y, d2k.x) - Math.PI)) : 0;
+  const clk = foilCL(alphaK, CFG.keel), cdk = foilCD(alphaK, CFG.keel);
+  const lk = { x: Math.sign(alphaK) * perpCCW(d2k).x, y: Math.sign(alphaK) * perpCCW(d2k).y };
+  const Kx_b = qwA_k * (clk * lk.x + cdk * d2k.x);
+  const Ky_b = qwA_k * (clk * lk.y + cdk * d2k.y);
+
+  /* --- Rudder (same pipeline; needs local flow) --------------------- */
+  const vr = { x: st.u, y: st.v + st.w * CFG.rudder.xFwd };
+  const vrm = Math.hypot(vr.x, vr.y);
+  const d2r = vrm > 1e-6 ? { x: -vr.x / vrm, y: -vr.y / vrm } : { x: 0, y: 0 };
+  const qwA_r = 0.5 * CFG.water.rho * vrm * vrm * CFG.rudder.area;
+  const thetaC = Math.PI - rad(inp.rudder);                 // chord line angle
+  const alphaR = vrm > 1e-6 ? deg(wrapPi(Math.atan2(d2r.y, d2r.x) - thetaC)) : 0;
+  const clr = foilCL(alphaR, CFG.rudder), cdr = foilCD(alphaR, CFG.rudder);
+  const lr = { x: Math.sign(alphaR) * perpCCW(d2r).x, y: Math.sign(alphaR) * perpCCW(d2r).y };
+  const Rx_b = qwA_r * (clr * lr.x + cdr * d2r.x);
+  const Ry_b = qwA_r * (clr * lr.y + cdr * d2r.y);
+
+  /* --- Hull resistance (relative to still water) --------------------- */
+  // Quadratic skin/pressure drag plus a steep wave-making term that ramps in
+  // above hull speed (displacement boats cannot quietly exceed it).
+  const heelDrag = 1 + CFG.hull.heelDragGain * Math.abs(Math.sin(rad(st.heel)));
+  const uu = Math.abs(st.u);
+  let surgeD = CFG.hull.surgeLin * st.u + CFG.hull.surgeQuad * st.u * uu;
+  if (uu > CFG.hull.hullSpeed)
+    surgeD += Math.sign(st.u) * CFG.hull.waveK * uu * uu * Math.exp((uu - CFG.hull.hullSpeed) / 0.55);
+  const Dx_b = -surgeD * heelDrag;
+  const Dy_b = -(CFG.hull.swayLin  * st.v + CFG.hull.swayQuad  * st.v * Math.abs(st.v));
+
+  /* --- Assemble body-frame totals ------------------------------------ */
+  const Fx = Fx_b + Kx_b + Rx_b + Dx_b;
+  const Fy = Fy_b + Ky_b + Ry_b + Dy_b;
+
+  /* --- Moments --------------------------------------------------------*/
+  // Yaw (τ_z = x'·F_y' − y'·F_x'); CE on centerline ⇒ sail yaw = ceFwd·Fy
+  const N = CFG.sail.ceFwd * Fy_b + CFG.keel.xFwd * Ky_b + CFG.rudder.xFwd * Ry_b
+          - CFG.hull.yawDamp * st.w;
+  // Roll: lateral forces × height above CG (+ starboard force at +h heels to starboard)
+  const Mroll = CFG.sail.ceHeight * Fy_b - CFG.keel.belowCG * Ky_b
+              - CFG.rudder.belowCG * Ry_b - CFG.hull.rollDamp * st.heelRate;
+  const Mrestore = -m * CFG.water.g * CFG.boat.GM * Math.sin(rad(st.heel));
+
+  return {
+    Fx, Fy,                                  // body-frame total (N)
+    sail: { Fx: Fx_b, Fy: Fy_b, lift, drag, qA, alpha, beta, aws, tack, d2,
+            state: st8.label, stallFactor: st8.stall },
+    keel: { Fx: Kx_b, Fy: Ky_b, alpha: alphaK, speed: vkm },
+    rudder:{ Fx: Rx_b, Fy: Ry_b, alpha: alphaR, speed: vrm },
+    momentN: N, momentRoll: Mroll + Mrestore,
+    rollNoRestore: Mroll,
+    vel, air, apparent: rel,                 // world-frame vectors for viz
+    fDrive: Fx_b * (alpha < 0 ? 1 : 1) * 1,  // forward component of sail force
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 3c. INTEGRATION — semi-implicit Euler, fixed dt, accumulator.       */
+/* ------------------------------------------------------------------ */
+let acc = 0;
+function stepPhysics(dt, st, inp, t){
+  const F = computeForces(st, inp, t);
+  const m = inp.mass;
+  const Izz = m * CFG.boat.yawInertiaK ** 2;
+  const Ixx = m * CFG.boat.rollInertiaK ** 2;
+  // body-frame accel with rotating-frame coupling (see conventions)
+  const du = F.Fx / m + st.w * st.v;
+  const dv = F.Fy / m - st.w * st.u;
+  st.u += du * dt;  st.v += dv * dt;
+  st.w += (F.momentN / Izz) * dt;
+  st.heelRate += (F.momentRoll / Ixx) * dt;
+  st.psi = wrapPi(st.psi + st.w * dt);
+  st.heel += st.heelRate * dt;
+  const f = fwdVec(st.psi), s = stbVec(st.psi);
+  st.x += (st.u * f.x + st.v * s.x) * dt;
+  st.z += (st.u * f.z + st.v * s.z) * dt;
+  st.t += dt;
+  // safety: NaN guard + sane clamps (documented, not behavior-hiding)
+  if (!isFinite(st.u) || !isFinite(st.v) || !isFinite(st.psi) || !isFinite(st.heel)) {
+    st.nan = true; st.u = 0; st.v = 0; st.w = 0; st.heelRate = 0;
+  }
+  const spd = Math.hypot(st.u, st.v);
+  if (spd > 25){ const k = 25 / spd; st.u *= k; st.v *= k; }
+  st.heel = clamp(st.heel, -75, 75);
+  return F;
+}
+
+/* One animation-frame worth of physics (fixed timestep accumulator). */
+function advance(dtFrame, st, inp){
+  acc = Math.min(acc + dtFrame * inp.simSpeed, CFG.physics.maxCatchup);
+  let F = computeForces(st, inp, st.t);
+  const h = CFG.physics.dt;
+  let n = 0;
+  while (acc >= h && n < CFG.physics.maxSubsteps){
+    F = inp.mode === 'free' ? stepPhysics(h, st, inp, st.t)
+                            : computeForces(st, inp, st.t);
+    if (inp.mode === 'fixed') st.t += h;   // rig clock: gusts/airflow keep moving
+    acc -= h; n++;
+    if (inp.mode === 'free' && (Math.abs(st.x) > CFG.world.basinX || Math.abs(st.z) > CFG.world.basinZ)){
+      st.boundaryHit = true; acc = 0; break;
+    }
+    if (inp.mode === 'free' && Math.abs(st.heel) > CFG.boat.heelLimitDeg){
+      st.heelLimitHit = true; acc = 0; break;
+    }
+  }
+  if (n === CFG.physics.maxSubsteps) acc = 0;   // cap catch-up work
+  return F;
+}
+
+/* ================================================================== */
+/* 4. SCENE                                                            */
+/* ================================================================== */
+const errOverlay = document.getElementById('errOverlay');
+function showError(title, msg){
+  errOverlay.style.display = 'flex';
+  document.getElementById('errTitle').textContent = title;
+  document.getElementById('errMsg').innerHTML = msg;
+}
+window.addEventListener('error', e => {
+  if (!window.__aeronautReady)
+    showError('Script error', (e.message||'Unknown error') + '<br><span style="color:var(--muted)">If this mentions CDN/module loading, check your internet connection and reload.</span>');
+});
+
+let renderer, scene, camera, controls;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch(e) {
+  showError('WebGL unavailable', 'This lab needs WebGL, which your browser refused to enable: <code>' + e.message + '</code>');
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.domElement.className = 'webgl';
+document.body.appendChild(renderer.domElement);
+
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x081018);
+scene.fog = new THREE.FogExp2(0x081018, 0.0072);
+
+camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 900);
+camera.position.set(-11, 5.2, -12.5);
+
+controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = 1.53; controls.minDistance = 3.5; controls.maxDistance = 180;
+
+scene.add(new THREE.HemisphereLight(0x7fa8c4, 0x0a1420, 0.6));
+const moon = new THREE.DirectionalLight(0xcfe4ff, 1.15);
+moon.position.set(-24, 38, -18); moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+moon.shadow.camera.left = -14; moon.shadow.camera.right = 14;
+moon.shadow.camera.top = 14; moon.shadow.camera.bottom = -14;
+moon.shadow.camera.far = 120; moon.shadow.bias = -0.0004;
+scene.add(moon);
+const rim = new THREE.PointLight(0xffb454, 14, 60, 2);
+rim.position.set(10, 4, 12); scene.add(rim);
+
+/* ---- Water: light Gerstner-ish shader, translucent so keel reads ---- */
+const waterUniforms = {
+  uTime: { value: 0 }, uOpacity: { value: 0.82 },
+  uDeep: { value: new THREE.Color(0x0a2438) }, uShallow: { value: new THREE.Color(0x14425c) },
+  uSky: { value: new THREE.Color(0x2a5a78) }, uSun: { value: new THREE.Vector3(-0.5, 0.8, -0.35).normalize() },
+};
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: waterUniforms, transparent: true,
+  vertexShader: `
+    uniform float uTime; varying vec3 vN; varying vec3 vW;
+    void main(){
+      vec3 p = position; // plane baked rotated: x,z horizontal, y up
+      float t = uTime;
+      float h = 0.0; vec2 grad = vec2(0.0);
+      // three directional waves (amp, dir, k, omega)
+      vec2 d1 = normalize(vec2(1.0,0.35)); float k1=0.55;
+      h += 0.05*sin(dot(p.xz,d1)*k1 + t*1.5); grad += 0.05*k1*cos(dot(p.xz,d1)*k1 + t*1.5)*d1;
+      vec2 d2v = normalize(vec2(-0.4,1.0)); float k2=0.95;
+      h += 0.028*sin(dot(p.xz,d2v)*k2 + t*2.1); grad += 0.028*k2*cos(dot(p.xz,d2v)*k2 + t*2.1)*d2v;
+      vec2 d3v = normalize(vec2(0.8,-0.6)); float k3=1.8;
+      h += 0.014*sin(dot(p.xz,d3v)*k3 + t*2.9); grad += 0.014*k3*cos(dot(p.xz,d3v)*k3 + t*2.9)*d3v;
+      p.y += h;
+      vN = normalize(vec3(-grad.x, 1.0, -grad.y));
+      vec4 wp = modelMatrix * vec4(p,1.0); vW = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform vec3 uDeep,uShallow,uSky,uSun; uniform float uOpacity;
+    varying vec3 vN; varying vec3 vW;
+    void main(){
+      vec3 V = normalize(cameraPosition - vW);
+      vec3 N = normalize(vN);
+      float fres = pow(1.0 - max(dot(N,V),0.0), 3.0);
+      vec3 col = mix(uDeep, uShallow, clamp(N.y,0.0,1.0)*0.35 + 0.3);
+      col = mix(col, uSky, fres*0.55);
+      vec3 H = normalize(uSun + V);
+      col += vec3(1.0,0.95,0.8) * pow(max(dot(N,H),0.0), 90.0) * 0.55;
+      gl_FragColor = vec4(col, uOpacity);
+    }`,
+});
+const waterGeo = new THREE.PlaneGeometry(420, 420, 110, 110);
+waterGeo.rotateX(-Math.PI/2);
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.position.y = 0; scene.add(water);
+
+/* ---- Shadow catcher under the boat -------------------------------- */
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(26, 10),
+  new THREE.ShadowMaterial({ opacity: 0.32 }));
+shadowPlane.rotateX(-Math.PI/2); shadowPlane.position.y = 0.02;
+shadowPlane.receiveShadow = true; scene.add(shadowPlane);
+
+/* ---- Basin markings + tunnel outline ------------------------------- */
+function lineMat(color, opacity){ return new THREE.LineBasicMaterial({ color, transparent: true, opacity }); }
+const basinGrp = new THREE.Group(); scene.add(basinGrp);
+{
+  const X = CFG.world.basinX, Z = CFG.world.basinZ, pts = [], ticks = [];
+  pts.push(-X,0.03,-Z, X,0.03,-Z,  X,0.03,-Z, X,0.03,Z,  X,0.03,Z, -X,0.03,Z,  -X,0.03,Z, -X,0.03,-Z);
+  for (let x=-X; x<=X; x+=5){ const long = (x%(25)===0); ticks.push(x,0.03,-Z, x,0.03,-Z+(long?1.4:0.6)); ticks.push(x,0.03, Z, x,0.03, Z-(long?1.4:0.6)); }
+  for (let z=-Z; z<=Z; z+=5){ const long = (z%(25)===0); ticks.push(-X,0.03,z, -X+(long?1.4:0.6),0.03,z); ticks.push(X,0.03,z, X-(long?1.4:0.6),0.03,z); }
+  basinGrp.add(new THREE.LineLoop(new THREE.BufferGeometry().setAttribute('position',
+      new THREE.Float32BufferAttribute(pts,3)), lineMat(0x41d9ff, 0.35)));
+  basinGrp.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',
+      new THREE.Float32BufferAttribute(ticks,3)), lineMat(0x41d9ff, 0.18)));
+}
+const tunnelGrp = new THREE.Group(); scene.add(tunnelGrp);
+{
+  const box = new THREE.BoxGeometry(30, 12, 18);
+  const edges = new THREE.EdgesGeometry(box);
+  const seg = new THREE.LineSegments(edges, lineMat(0x41d9ff, 0.16));
+  seg.position.y = 6.2; tunnelGrp.add(seg);
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 12),
+    new THREE.MeshBasicMaterial({ color: 0x41d9ff, transparent: true, opacity: 0.025, side: THREE.DoubleSide, depthWrite: false }));
+  wall.position.set(0, 6.2, -9); tunnelGrp.add(wall);
+}
+
+/* ================================================================== */
+/* 4b. THE BOAT — all procedural                                       */
+/* ================================================================== */
+const boatGroup = new THREE.Group();   // yaw
+const heelGroup = new THREE.Group();   // heel (rotation.x = -φ, +φ starboard)
+boatGroup.add(heelGroup); scene.add(boatGroup);
+
+const M = {
+  hull:  new THREE.MeshStandardMaterial({ color: 0x1c2b3a, roughness: 0.42, metalness: 0.15 }),
+  deck:  new THREE.MeshStandardMaterial({ color: 0xd8d3c6, roughness: 0.6 }),
+  dark:  new THREE.MeshStandardMaterial({ color: 0x111d29, roughness: 0.7 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0xb9c2cc, roughness: 0.35, metalness: 0.85 }),
+  iron:  new THREE.MeshStandardMaterial({ color: 0x39414b, roughness: 0.5, metalness: 0.7 }),
+  sail:  null, // canvas texture below
+};
+function seamTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f2eee2'; g.fillRect(0,0,256,256);
+  const grad = g.createLinearGradient(0,0,0,256);
+  grad.addColorStop(0,'rgba(0,0,0,0.10)'); grad.addColorStop(0.5,'rgba(255,255,255,0.10)'); grad.addColorStop(1,'rgba(0,0,0,0.16)');
+  g.fillStyle = grad; g.fillRect(0,0,256,256);
+  g.strokeStyle = 'rgba(60,70,90,0.35)'; g.lineWidth = 1.5;
+  for (let y=16; y<256; y+=32){ g.beginPath(); g.moveTo(0,y); g.lineTo(256,y); g.stroke(); }
+  g.strokeStyle = 'rgba(255,180,84,0.9)'; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(0,250); g.lineTo(256,250); g.stroke(); // amber foot stripe
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+M.sail = new THREE.MeshStandardMaterial({ map: seamTexture(), roughness: 0.85, side: THREE.DoubleSide });
+
+/* Hull loft: superellipse-ish sections along a station table */
+function loftHull(){
+  const stations = [ // x, halfWidth, keelY, deckY
+    [-3.30, 1.02, -0.50, 0.80], [-2.20, 1.14, -0.66, 0.84], [-0.80, 1.18, -0.72, 0.86],
+    [ 0.90, 1.10, -0.62, 0.86], [ 2.20, 0.82, -0.42, 0.84], [ 3.10, 0.42, -0.22, 0.80],
+    [ 3.48, 0.03, -0.03, 0.72] ];
+  const NPT = 17, pos = [], idx = [];
+  for (const [x, hw, ky, dy] of stations){
+    for (let j=0; j<NPT; j++){
+      const t = j/(NPT-1);                       // 0 starboard deck edge → 1 keel → 2 port deck edge
+      const tt = t<0.5 ? t*2 : (1-t)*2;
+      const z = hw * Math.cos(tt*Math.PI/2) * (t<0.5?1:-1);
+      const y = ky + (dy-ky) * Math.pow(1 - Math.pow(tt,0.8), 1.25);
+      pos.push(x, y, z);
+    }
+  }
+  for (let i=0; i<stations.length-1; i++) for (let j=0; j<NPT-1; j++){
+    const a=i*NPT+j, b=a+1, c=a+NPT, d=c+1; idx.push(a,c,b, b,c,d);
+  }
+  // transom cap (fan) + bow tip cap
+  const c0 = pos.length/3; pos.push(-3.30, 0.15, 0);
+  for (let j=0;j<NPT-1;j++) idx.push(c0, j, j+1);
+  const c1 = pos.length/3; pos.push(3.48, 0.33, 0);
+  const off = (stations.length-1)*NPT;
+  for (let j=0;j<NPT-1;j++) idx.push(c1, off+j+1, off+j);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+const hullMesh = new THREE.Mesh(loftHull(), M.hull); hullMesh.castShadow = true; heelGroup.add(hullMesh);
+// amber boot stripe at waterline
+{
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(1.24, 1.24, 0.07, 40, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xffb454, roughness: 0.5, side: THREE.DoubleSide }));
+  stripe.scale.set(1, 1, 0.5); stripe.position.set(0.1, -0.06, 0); heelGroup.add(stripe);
+}
+/* Deck strip with slight camber */
+function loftDeck(){
+  const st = [[-3.30,1.02,0.80],[2.20,0.82,0.84],[3.10,0.42,0.80],[3.46,0.03,0.72]];
+  st.unshift([-2.20,1.14,0.84],[-0.80,1.18,0.86],[0.90,1.10,0.86]);
+  st.sort((a,b)=>a[0]-b[0]);
+  const pos=[],idx=[]; const n=st.length;
+  for (const [x,hw,dy] of st){ pos.push(x,dy+0.02,hw, x,dy+0.10,0, x,dy+0.02,-hw); }
+  for (let i=0;i<n-1;i++){ const a=i*3; idx.push(a,a+3,a+1, a+1,a+3,a+4, a+1,a+4,a+2, a+2,a+4,a+5); }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx);
+  g.computeVertexNormals(); return g;
+}
+const deckMesh = new THREE.Mesh(loftDeck(), M.deck); deckMesh.castShadow = true; heelGroup.add(deckMesh);
+/* Cockpit recess + coaming */
+{
+  const ck = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.22, 1.15), M.dark);
+  ck.position.set(-1.0, 0.82, 0); heelGroup.add(ck);
+  const tiller = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.9), M.metal);
+  tiller.rotation.z = Math.PI/2 - 0.5; tiller.position.set(-2.15, 0.95, 0.25); heelGroup.add(tiller);
+}
+/* Mast, boom, sail */
+const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 9.0, 10), M.metal);
+mast.position.set(0.7, 5.3, 0); mast.castShadow = true; heelGroup.add(mast);
+const boomGroup = new THREE.Group(); boomGroup.position.set(0.7, 1.35, 0); heelGroup.add(boomGroup);
+const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 4.3, 10), M.metal);
+boom.geometry.rotateZ(Math.PI/2); boom.geometry.translate(-2.15, 0, 0);
+boom.castShadow = true; boomGroup.add(boom);
+boomGroup.rotation.y = 0; // set per-frame from trim
+
+const SAIL_NU = 15, SAIL_NV = 13, SAIL_VERTS = SAIL_NU*SAIL_NV;
+const sailGeo = new THREE.BufferGeometry();
+{
+  const idx = [];
+  for (let i=0;i<SAIL_NU-1;i++) for (let j=0;j<SAIL_NV-1;j++){
+    const a=i*SAIL_NV+j, b=a+1, c=a+SAIL_NV, d=c+1; idx.push(a,c,b, b,c,d);
+  }
+  sailGeo.setIndex(idx);
+  sailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SAIL_VERTS*3), 3));
+  sailGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(SAIL_VERTS*2), 2));
+}
+const sailMesh = new THREE.Mesh(sailGeo, M.sail); sailMesh.castShadow = true; heelGroup.add(sailMesh);
+const leechLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position',
+  new THREE.BufferAttribute(new Float32Array(SAIL_NV*3),3)), lineMat(0xffb454, 0.95));
+heelGroup.add(leechLine);
+
+const SAIL = { mastX: 0.7, footY: 1.35, luff: 8.2, footChord: 4.2 };
+function updateSail(trimDeg, tack){
+  const d = rad(trimDeg);
+  boomGroup.rotation.y = d;
+  const belly = { x: -tack*Math.sin(d), z: -tack*Math.cos(d) };  // leeward side
+  const P = sailGeo.attributes.position.array, UV = sailGeo.attributes.uv.array;
+  const L = leechLine.geometry.attributes.position.array;
+  let k = 0, kl = 0;
+  for (let i=0;i<SAIL_NU;i++){ const u=i/(SAIL_NU-1);
+    for (let j=0;j<SAIL_NV;j++){ const v=j/(SAIL_NV-1);
+      const chord = SAIL.footChord*(1-0.72*v) + 0.30*Math.sin(Math.PI*v);
+      const camber = 0.12*chord*Math.sin(Math.PI*u)*(1-0.45*v);
+      const cx = -u*chord*Math.cos(d) + belly.x*camber;
+      const cz =  u*chord*Math.sin(d) + belly.z*camber;
+      P[k++]=SAIL.mastX+cx; P[k++]=SAIL.footY+v*SAIL.luff; P[k++]=cz;
+      UV[(i*SAIL_NV+j)*2]=u; UV[(i*SAIL_NV+j)*2+1]=v*2.0;
+      if (i===SAIL_NU-1){ L[kl++]=SAIL.mastX+cx; L[kl++]=SAIL.footY+v*SAIL.luff; L[kl++]=cz; }
+    } }
+  sailGeo.attributes.position.needsUpdate = true;
+  sailGeo.attributes.uv.needsUpdate = true;
+  sailGeo.computeVertexNormals();
+  leechLine.geometry.attributes.position.needsUpdate = true;
+}
+/* Keel fin + bulb, rudder (underwater) */
+{
+  const sh = new THREE.Shape();
+  sh.moveTo(-1.70,-0.50); sh.lineTo(-0.10,-0.50); sh.lineTo(-0.55,-1.55); sh.lineTo(-1.45,-1.55); sh.closePath();
+  const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:0.10,bevelEnabled:false}), M.iron);
+  fin.position.z = -0.05; fin.castShadow = true; heelGroup.add(fin);
+  const bulb = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 1.35, 4, 10), M.iron);
+  bulb.rotation.z = Math.PI/2; bulb.position.set(-1.0, -1.60, 0); bulb.castShadow = true; heelGroup.add(bulb);
+}
+const rudderGroup = new THREE.Group(); rudderGroup.position.set(-3.05, -0.32, 0); heelGroup.add(rudderGroup);
+{
+  const rd = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.78, 0.055), M.iron);
+  rd.position.set(-0.36, -0.12, 0); rd.castShadow = true; rudderGroup.add(rd);
+}
+/* Anchors for force arrows (children of heelGroup so they heel with the boat) */
+function anchor(x,y,z){ const o = new THREE.Object3D(); o.position.set(x,y,z); heelGroup.add(o); return o; }
+const ceAnchor  = anchor(-0.45, 4.6, 0);   // sail centre of effort (matches CFG.sail.ceFwd)
+const keelAnchor= anchor(-1.0, -1.1, 0);
+const rudAnchor = anchor(-3.1, -0.4, 0);
+const headAnchor= anchor(0.7, 9.6, 0);
+
+/* ================================================================== */
+/* 4c. FORCE / WIND ARROWS                                             */
+/* ================================================================== */
+function makeArrow(color){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false });
+  const shaftGeo = new THREE.CylinderGeometry(0.024, 0.024, 1, 6); shaftGeo.translate(0, 0.5, 0);
+  const shaft = new THREE.Mesh(shaftGeo, mat);
+  const headGeo = new THREE.ConeGeometry(0.075, 0.22, 8); headGeo.translate(0, 0.11, 0);
+  const head = new THREE.Mesh(headGeo, mat);
+  g.add(shaft, head); g.userData = { shaft, head };
+  g.visible = false; scene.add(g);
+  return g;
+}
+const _up = new THREE.Vector3(0,1,0);
+function setArrow(g, origin, dir, len){
+  if (len < 0.02 || !isFinite(len)){ g.visible = false; return; }
+  g.visible = true;
+  const d = new THREE.Vector3(dir.x, dir.y||0, dir.z).normalize();
+  g.position.set(origin.x, origin.y, origin.z);
+  g.quaternion.setFromUnitVectors(_up, d);
+  const headLen = Math.min(0.22, len*0.4);
+  g.userData.shaft.scale.set(1, Math.max(len-headLen, 0.001), 1);
+  g.userData.head.scale.set(1, headLen/0.22, 1);
+  g.userData.head.position.set(0, len-headLen, 0);
+}
+const arrows = {
+  twind: makeArrow(0x9fd8ff), awind: makeArrow(0x41d9ff),
+  lift:  makeArrow(0x7dffb0), drag: makeArrow(0xff7a6b),
+  aero:  makeArrow(0xffb454), keel: makeArrow(0xb48cff),
+};
+const ARROW_FORCE_SCALE = 600, ARROW_WIND_SCALE = 4;
+const ARROW_MIN = 0.25, ARROW_MAX = 3.5;
+
+/* ================================================================== */
+/* 4d. AIRFLOW PARTICLES — illustrative field (labelled, not CFD)      */
+/* ================================================================== */
+const FLOW_MAX = 2400;
+const flowGeo = new THREE.BufferGeometry();
+flowGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(FLOW_MAX*3), 3));
+const flowMat = new THREE.PointsMaterial({ color: 0x41d9ff, size: 0.10, transparent: true,
+  opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+const flowPoints = new THREE.Points(flowGeo, flowMat);
+flowPoints.frustumCulled = false; scene.add(flowPoints);
+const flow = { n: 1100, seeds: new Float32Array(FLOW_MAX), ages: new Float32Array(FLOW_MAX) };
+for (let i=0;i<FLOW_MAX;i++) flow.seeds[i] = Math.random()*1000;
+function flowBoxHalf(){ return { x: 16, y: 5.4, z: 8.5 }; }
+function flowRespawn(i, anchor, wind){
+  const H = flowBoxHalf();
+  // spawn on the upwind side of the box, biased into the inflow
+  const wd = Math.hypot(wind.x, wind.z) > 1e-4 ? { x: wind.x/Math.hypot(wind.x,wind.z), z: wind.z/Math.hypot(wind.x,wind.z) } : { x: 1, z: 0 };
+  flowGeo.attributes.position.array[i*3]   = anchor.x - wd.x*H.x*0.92 + (Math.random()-0.5)*2*H.x*0.5;
+  flowGeo.attributes.position.array[i*3+1] = 0.4 + Math.random()*(H.y*2-0.6);
+  flowGeo.attributes.position.array[i*3+2] = anchor.z - wd.z*H.z*0.92 + (Math.random()-0.5)*2*H.z;
+  flow.ages[i] = 0;
+}
+/* Lightweight illustrative velocity field — NOT a CFD solution. */
+function flowField(px, py, pz, anchor, windWorld, t, sailInfo, psi, seed, out){
+  let vx = windWorld.x, vz = windWorld.z, vy = 0;
+  const sailC = { x: anchor.x, y: 4.5, z: anchor.z };   // approx sail centre
+  const rx = px - sailC.x, ry = py - sailC.y, rz = pz - sailC.z;
+  const rb = worldToBody({ x: rx, z: rz }, psi);        // a=along fwd, b=along stbd
+  const d = Math.hypot(rx, rz);
+  if (Math.abs(rb.x) < 5 && Math.abs(rb.y) < 1.6 && ry > -1 && ry < 7){
+    // deflect flow around the sail plane: kill the normal component near it
+    const dTrim = rad(input.trim);
+    const nB = { x: Math.sin(dTrim), y: Math.cos(dTrim) };   // sail-plane normal (body 2-D)
+    const nW = bodyToWorld(nB, psi);
+    const perp = Math.abs(rb.y) / 1.6, along = Math.abs(rb.x) / 5;
+    const w = Math.exp(-perp*perp*2.2) * Math.exp(-along*along*0.8);
+    const vn = vx*nW.x + vz*nW.z;
+    vx -= nW.x * vn * w * 0.95; vz -= nW.z * vn * w * 0.95;
+  }
+  // wake: downstream of the sail, disturbed in proportion to stall severity
+  if (sailInfo){
+    const d2w = bodyToWorld(sailInfo.d2, psi);
+    const down = (px-sailC.x)*d2w.x + (pz-sailC.z)*d2w.z;
+    const side = Math.abs((px-sailC.x)*(-d2w.z) + (pz-sailC.z)*d2w.x);
+    if (down > 1.5 && down < 15 && side < 2.6){
+      const dec = Math.exp(-side*side/2.2) * Math.exp(-(down-1.5)/9);
+      const s = seed;
+      const amp = (0.12 + 0.85*sailInfo.stallFactor) * Math.hypot(windWorld.x, windWorld.z) * dec;
+      vx += amp * Math.sin(2.1*px + 4.7*t + s*0.13) * 0.5;
+      vz += amp * Math.cos(1.7*pz - 3.9*t + s*0.29) * 0.5;
+      vy += amp * 0.22 * Math.sin(1.3*py + 2.2*t + s*0.07);
+      if (sailInfo.state === 'luffing'){       // flutter: oscillating normal flow
+        const nW = bodyToWorld({ x: Math.sin(rad(input.trim)), y: Math.cos(rad(input.trim)) }, psi);
+        const fl = Math.sin(t*9 + py*1.3) * 0.22 * Math.hypot(windWorld.x,windWorld.z) * dec;
+        vx += nW.x*fl; vz += nW.z*fl;
+      }
+    }
+  }
+  out.x = vx; out.y = vy; out.z = vz;
+}
+const _fv = { x:0, y:0, z:0 };
+function updateFlow(dt, t, anchor, sailInfo, psi){
+  const arr = flowGeo.attributes.position.array;
+  const H = flowBoxHalf();
+  const nShow = Math.min(flow.n, input.flowDensity);
+  flowPoints.visible = input.flowVisible && nShow > 0;
+  if (!flowPoints.visible) return;
+  const wind = trueWindWorld(t);
+  for (let i=0;i<nShow;i++){
+    let x=arr[i*3], y=arr[i*3+1], z=arr[i*3+2];
+    if (flow.ages[i]===0 && (Math.abs(x)>1e8)) flowRespawn(i, anchor, wind);
+    flowField(x,y,z, anchor, wind, t, sailInfo, psi, flow.seeds[i], _fv);
+    x += _fv.x*dt; y += _fv.y*dt; z += _fv.z*dt;
+    flow.ages[i] += dt;
+    const ox = x-anchor.x, oz = z-anchor.z;
+    if (Math.abs(ox)>H.x || Math.abs(oz)>H.z || y<0.15 || y>H.y*2 || flow.ages[i]>8 || !isFinite(x))
+      flowRespawn(i, anchor, wind);
+    else { arr[i*3]=x; arr[i*3+1]=y; arr[i*3+2]=z; }
+  }
+  flowGeo.attributes.position.needsUpdate = true;
+}
+function flowReset(anchor){
+  const wind = trueWindWorld(0);
+  for (let i=0;i<FLOW_MAX;i++){ flowRespawn(i, anchor, wind);
+    // pre-scatter so the field starts populated
+    flowGeo.attributes.position.array[i*3]   += (Math.random()-0.5)*2*flowBoxHalf().x*0.8;
+    flowGeo.attributes.position.array[i*3+2] += (Math.random()-0.5)*2*flowBoxHalf().z*0.8;
+    flow.ages[i] = Math.random()*4;
+  }
+  flowGeo.attributes.position.needsUpdate = true;
+}
+
+/* ---- Boat track (free mode) ---- */
+const TRACK_MAX = 900;
+const trackGeo = new THREE.BufferGeometry();
+trackGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRACK_MAX*3), 3));
+trackGeo.setDrawRange(0, 0);
+const trackLine = new THREE.Line(trackGeo, lineMat(0xffb454, 0.55));
+trackLine.frustumCulled = false; scene.add(trackLine);
+let trackCount = 0, trackTimer = 0;
+function trackPush(x, z){
+  if (trackCount >= TRACK_MAX) return;
+  const a = trackGeo.attributes.position.array;
+  a[trackCount*3] = x; a[trackCount*3+1] = 0.06; a[trackCount*3+2] = z;
+  trackCount++; trackGeo.setDrawRange(0, trackCount);
+  trackGeo.attributes.position.needsUpdate = true;
+}
+
+/* ================================================================== */
+/* 5. UI, PRESETS, CHECKS, MAIN LOOP                                   */
+/* ================================================================== */
+const $ = id => document.getElementById(id);
+Object.assign(input, { flowVisible: true, flowDensity: 1100, vecVisible: true, trackVisible: true, uw: false });
+
+/* ---- Physics checks: honest, computed live ------------------------ */
+function runChecks(){
+  const saved = { ...input }; input.gustOn = false;
+  const out = [];
+  const mk = (name, exp, got, pass) => out.push({ name, exp, got, pass });
+  const F = (st, over={}) => computeForces(st, { ...input, ...over }, 0);
+  const st0 = () => ({ x:0,z:0,psi:rad(0),u:0,v:0,w:0,heel:0,heelRate:0,t:0,nan:false,boundaryHit:false,heelLimitHit:false });
+
+  { // 1 · zero apparent wind ⇒ zero aero force
+    const f = F(st0(), { tws: 0 });
+    const mag = Math.abs(f.sail.lift) + Math.abs(f.sail.drag);
+    mk('Zero apparent wind → zero aero force', '≈ 0 N', mag.toExponential(1)+' N', mag < 1e-9);
+  }
+  { // 2 · doubling wind quadruples force (fixed geometry)
+    const a = F(st0(), { tws: 5, trim: 30, wdirFrom: 90 });
+    const b = F(st0(), { tws: 10, trim: 30, wdirFrom: 90 });
+    const mA = Math.hypot(a.sail.Fx, a.sail.Fy), mB = Math.hypot(b.sail.Fx, b.sail.Fy);
+    const ratio = mB / mA;
+    mk('2× wind speed → 4× force', 'ratio = 4.000', ratio.toFixed(3), Math.abs(ratio-4)/4 < 0.02);
+  }
+  { // 3 · drag acts along relative airflow
+    const f = F(st0(), { tws: 6, trim: 35, wdirFrom: 110 });
+    const s = f.sail;
+    const L = { x: s.tack * perpCCW(s.d2).x, y: s.tack * perpCCW(s.d2).y };
+    const dragVec = { x: s.Fx - s.lift * L.x, y: s.Fy - s.lift * L.y };
+    const mD = Math.hypot(dragVec.x, dragVec.y);
+    const align = (dragVec.x*s.d2.x + dragVec.y*s.d2.y) / (mD || 1);
+    mk('Aero drag ∥ relative airflow', 'cos ≈ 1.000', align.toFixed(4), Math.abs(align-1) < 1e-3);
+  }
+  { // 4 · hydro drag opposes water-relative motion
+    const st = st0(); st.u = 2; st.v = 0.3;
+    const f = F(st, { tws: 0 });
+    const power = f.Fx*st.u + f.Fy*st.v;
+    mk('Hydro drag opposes motion', 'F·v < 0', power.toFixed(1)+' W', power < -0.1);
+  }
+  { // 5 · mirror symmetry: lateral flips, forward preserved
+    const A = F(st0(), { tws: 6, trim:  35, wdirFrom: 270 });   // wind from port
+    const B = F(st0(), { tws: 6, trim: -35, wdirFrom:  90 });   // wind from starboard
+    const dFx = Math.abs(A.sail.Fx - B.sail.Fx) / Math.max(Math.abs(A.sail.Fx), 1e-6);
+    const dFy = Math.abs(A.sail.Fy + B.sail.Fy) / Math.max(Math.abs(A.sail.Fy), 1e-6);
+    mk('Mirror → lateral flips, forward kept', 'ΔFx,ΔFy < 1%', `ΔFx ${(dFx*100).toFixed(2)}% · ΔFy ${(dFy*100).toFixed(2)}%`, dFx < 0.01 && dFy < 0.01);
+  }
+  { // 6 · stationary boat in still air+water stays stationary
+    const st = st0(); const inp = { ...input, tws: 0, gustOn: false, mode: 'free' };
+    for (let i=0;i<720;i++) stepPhysics(1/120, st, inp, i/120);
+    const spd = Math.hypot(st.u, st.v);
+    mk('Still boat in still air/water', 'speed ≈ 0', spd.toExponential(1)+' m/s', spd < 1e-7);
+  }
+  { // 7 · rudder forceless without flow
+    const st = st0(); st.psi = 0; const f = F(st, { rudder: 25, tws: 8 });
+    const fr = Math.hypot(f.rudder.Fx, f.rudder.Fy);
+    mk('No water flow → no rudder force', '≈ 0 N', fr.toExponential(1)+' N', fr < 1e-9);
+  }
+  { // 8 · frame-rate independence
+    const inp = { ...input, tws: 6, wdirFrom: 90, trim: 45, rudder: 0, gustOn: false, mode: 'free' };
+    const A = st0(), B = st0(); const T = 20;
+    for (let i=0;i<T*120;i++) stepPhysics(1/120, A, inp, A.t);
+    for (let i=0;i<T*47;i++)  stepPhysics(1/47,  B, inp, B.t);
+    const du = Math.abs(A.u-B.u)/Math.max(Math.abs(A.u),1e-6);
+    const dps = Math.abs(deg(A.psi-B.psi));
+    mk('Physics ∝ stable across frame rates', 'Δv < 3% · Δψ < 2°', `Δv ${(du*100).toFixed(2)}% · Δψ ${dps.toFixed(2)}°`, du < 0.03 && dps < 2);
+  }
+  Object.assign(input, saved);
+  const el = $('checksOut');
+  el.innerHTML = '<table class="checks">' + out.map(c =>
+    `<tr><td>${c.name}<br><span class="${c.pass?'pass':'fail'}">${c.pass?'PASS':'FAIL'}</span> — expected ${c.exp}, got ${c.got}</td></tr>`).join('') + '</table>';
+  return out;
+}
+
+/* ---- Presets ------------------------------------------------------- */
+const PRESETS = {
+  beamDefault: { mode:'fixed', tws:7, wdirFrom:90, gust:0.3, gustOn:true, trim:75, rudder:0, heading:0,
+    note:'<b>Beam reach on the test rig.</b> Watch the airflow bend around the sail and the amber total-force arrow point forward-and-to-leeward: most of the drive comes from <b>lift</b>, not drag. Switch to <b>Free sail</b> to release the boat.' },
+  beam: { mode:'free', tws:6.5, wdirFrom:90, gust:0.2, gustOn:false, trim:60, rudder:0, heading:0,
+    note:'<b>Beam reach, released.</b> Apparent wind moves forward as the boat accelerates; speed settles where hull+keel resistance balances the sail force. Expect heel building then steadying.' },
+  hauled: { mode:'free', tws:6, wdirFrom:35, gust:0.2, gustOn:false, trim:25, rudder:0, heading:0,
+    note:'<b>Close-hauled.</b> Sailing ~35° off the true wind: high angle of attack, heavy lateral loading, visible leeway and heel. Try trimming harder (−) and watch the drive force fall.' },
+  downwind: { mode:'free', tws:8, wdirFrom:0, gust:0.2, gustOn:false, trim:75, rudder:0, heading:180,
+    note:'<b>Dead run.</b> The sail is a barn door: drag-dominated, slow, no lift to speak of. Heel is minimal because the lateral force nearly vanishes.' },
+  stall: { mode:'fixed', tws:7, wdirFrom:90, gust:0, gustOn:false, trim:10, rudder:0, heading:0,
+    note:'<b>Stall demo (fixed rig).</b> Boom nearly centred in a beam wind ⇒ angle of attack ≈ 80°: flow separates, lift collapses, drag peaks — and the wake downstream turns turbulent.' },
+  gust: { mode:'free', tws:8, wdirFrom:180, gust:0.55, gustOn:true, trim:45, rudder:0, heading:90,
+    note:'<b>Gust response.</b> Watch heel pump up on gusts and recover in the lulls — the restoring moment (mass × g × GM × sin φ) fights the heeling moment. The heel chart shows the oscillation.' },
+};
+function applyPreset(key){
+  const p = PRESETS[key]; if (!p) return;
+  Object.assign(input, { tws:p.tws, wdirFrom:p.wdirFrom, gustFrac:p.gust, gustOn:p.gustOn,
+    trim:p.trim, rudder:p.rudder, heading:p.heading, mode:p.mode });
+  syncModeButtons();
+  syncInputs();
+  resetSim(true);
+  $('presetNote').textContent = ''; $('presetNote').style.display = 'block';
+  $('presetNote').innerHTML = p.note;
+  clearTimeout(applyPreset._t);
+  applyPreset._t = setTimeout(()=>{ $('presetNote').style.display='none'; }, 14000);
+  $('presetHint').innerHTML = p.note;
+}
+/* ---- Mode / reset -------------------------------------------------- */
+function refreshLast(F){
+  const sp = Math.hypot(S.u, S.v);
+  last = {
+    aero: F.sail, aws: F.sail.aws,
+    awa: F.sail.aws > 0.15 ? F.sail.beta : null,
+    bsp: sp,
+    leeway: sp > 0.05 ? deg(Math.atan2(S.v, Math.abs(S.u))) : null,
+    sail: F.sail, keel: F.keel, rudder: F.rudder,
+    lift: F.sail.lift, drag: F.sail.drag, fDrive: F.sail.Fx,
+    heelEq: input.mode==='fixed' ? deg(Math.asin(clamp(-F.rollNoRestore / (input.mass*CFG.water.g*CFG.boat.GM), -0.98, 0.98))) : S.heel,
+  };
+  last.aeroState = { aws: F.sail.aws, state: F.sail.state, stall: F.sail.stallFactor };
+}
+function syncModeButtons(){
+  $('btnFixed').classList.toggle('active', input.mode==='fixed');
+  $('btnFree').classList.toggle('active', input.mode==='free');
+}
+function resetSim(keepAlertHidden){
+  S = freshState(input.heading);
+  acc = 0; trackCount = 0; trackGeo.setDrawRange(0,0);
+  chartSpeed.fill(0); chartHeel.fill(0); sampleAcc = 0;
+  flowReset({ x: S.x, z: S.z });
+  refreshLast(computeForces(S, input, S.t));   // instruments show the fresh state, not stale forces
+  hideAlert();
+  updateBanner();
+}
+function setMode(m){
+  input.mode = m;
+  syncModeButtons();
+  resetSim();
+}
+function updateBanner(){
+  $('modeBanner').innerHTML = input.mode === 'fixed'
+    ? '<b>Fixed test rig</b> — the mount supplies all reaction forces; the boat cannot translate or yaw. Heel shown is the predicted static equilibrium the rig would hold.'
+    : '<b>Free sailing</b> — forces are integrated (semi-implicit Euler, 120 Hz). Follow camera active · basin boundary ±65 × ±32 m.';
+}
+/* ---- Alerts (boundary / heel limit) -------------------------------- */
+function showAlert(msg, withReset){
+  const a = $('alertBox');
+  a.innerHTML = msg + (withReset ? '<br><button class="btn warn" id="alertReset">↺ Reset simulation</button>' : '');
+  a.style.display = 'block';
+  if (withReset) $('alertReset').onclick = () => resetSim();
+  input.paused = true; syncPlayBtn();
+}
+function hideAlert(){ $('alertBox').style.display = 'none'; }
+
+/* ---- Charts --------------------------------------------------------- */
+const CH_N = 120, CH_DT = 0.25;
+const chartSpeed = new Float32Array(CH_N), chartHeel = new Float32Array(CH_N);
+let sampleAcc = 0;
+function sampleCharts(){
+  chartSpeed.copyWithin(0,1); chartHeel.copyWithin(0,1);
+  chartSpeed[CH_N-1] = Math.hypot(S.u,S.v)*1.94384;
+  chartHeel[CH_N-1] = S.heel;
+}
+function drawChart(cv, data, lo, hi, color, unit){
+  const dpr = Math.min(devicePixelRatio,2), W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W*dpr){ cv.width = W*dpr; cv.height = H*dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,W,H);
+  g.strokeStyle = 'rgba(80,160,200,0.15)';
+  for (let i=1;i<4;i++){ g.beginPath(); g.moveTo(0,H*i/4); g.lineTo(W,H*i/4); g.stroke(); }
+  g.beginPath();
+  for (let i=0;i<CH_N;i++){
+    const x = i/(CH_N-1)*W, y = H - (clamp(data[i],lo,hi)-lo)/(hi-lo)*(H-6)-3;
+    i?g.lineTo(x,y):g.moveTo(x,y);
+  }
+  g.strokeStyle = color; g.lineWidth = 1.6; g.stroke();
+  g.fillStyle = color; g.font = '10px ui-monospace,monospace';
+  g.fillText(data[CH_N-1].toFixed(1)+unit, 5, 11);
+}
+/* ---- Inputs --------------------------------------------------------- */
+function bindRange(id, key, fmt, onchange){
+  const el = $(id), lab = $('v'+id.slice(2));
+  const upd = () => { input[key] = parseFloat(el.value); lab.textContent = fmt(input[key]); if (onchange) onchange(input[key]); };
+  el.addEventListener('input', upd); upd(); el._sync = () => { el.value = input[key]; lab.textContent = fmt(input[key]); };
+  return el;
+}
+const sliders = [
+  bindRange('inTws','tws', v=>v.toFixed(1)+' m/s'),
+  bindRange('inWdir','wdirFrom', v=>v.toFixed(0)+'°'),
+  bindRange('inGust','gustFrac', v=>(v*100).toFixed(0)+' %'),
+  bindRange('inTrim','trim', v=>v.toFixed(0)+'°'),
+  bindRange('inRud','rudder', v=>v.toFixed(0)+'°'),
+  bindRange('inHdg','heading', v=>v.toFixed(0)+'°', v=>{ if (input.mode==='fixed' && !S.nan) S.psi = rad(v); }),
+  bindRange('inMass','mass', v=>v.toFixed(0)+' kg'),
+  bindRange('inPDens','flowDensity', v=>v.toFixed(0)),
+];
+function syncInputs(){ for (const s of sliders) s._sync(); $('btnGust').classList.toggle('active', input.gustOn);
+  $('btnGust').textContent = input.gustOn ? 'Gusting (deterministic)' : 'Steady'; }
+$('btnGust').onclick = () => { input.gustOn = !input.gustOn; syncInputs(); };
+$('btnFlow').onclick = e => { input.flowVisible = !input.flowVisible; e.target.classList.toggle('active', input.flowVisible);
+  e.target.textContent = input.flowVisible ? 'Visible' : 'Hidden'; };
+$('btnVec').onclick = e => { input.vecVisible = !input.vecVisible; e.target.classList.toggle('active', input.vecVisible);
+  e.target.textContent = input.vecVisible ? 'Visible' : 'Hidden'; };
+$('btnTrack').onclick = e => { input.trackVisible = !input.trackVisible; e.target.classList.toggle('active', input.trackVisible);
+  trackLine.visible = input.trackVisible; e.target.textContent = input.trackVisible ? 'Visible' : 'Hidden'; };
+$('btnUw').onclick = e => { input.uw = !input.uw; e.target.classList.toggle('active', input.uw);
+  e.target.textContent = input.uw ? 'On' : 'Off';
+  waterUniforms.uOpacity.value = input.uw ? 0.16 : 0.82; };
+function syncPlayBtn(){ $('btnPlay').textContent = input.paused ? '▶ Play' : '⏸ Pause'; }
+$('btnPlay').onclick = () => { input.paused = !input.paused; syncPlayBtn(); };
+$('btnReset').onclick = () => resetSim();
+$('btnFixed').onclick = () => setMode('fixed');
+$('btnFree').onclick  = () => setMode('free');
+document.querySelectorAll('#speedSeg .btn').forEach(b => b.onclick = () => {
+  input.simSpeed = parseFloat(b.dataset.speed);
+  document.querySelectorAll('#speedSeg .btn').forEach(x=>x.classList.toggle('active', x===b));
+});
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => applyPreset(b.dataset.preset));
+document.querySelectorAll('.cam').forEach(b => b.onclick = () => applyCam(b.dataset.cam));
+$('btnChecks').onclick = () => runChecks();
+$('tgLeft').onclick = () => $('left').classList.toggle('open');
+$('tgRight').onclick = () => $('right').classList.toggle('open');
+
+const CAMS = {
+  persp: { pos: [-11, 5.2, -12.5], tgt: [0, 2.2, 0] },
+  over:  { pos: [0, 60, 0.01],     tgt: [0, 0, 0] },
+  stern: { pos: [0.8, 3.4, 11.5],  tgt: [0, 2.4, 0] },
+  sail:  { pos: [-4.6, 5.6, 5.8],  tgt: [-0.45, 4.4, 0] },
+};
+function applyCam(key){
+  const c = CAMS[key]; if (!c) return;
+  const bp = new THREE.Vector3(S.x, 0, S.z);
+  const off = new THREE.Vector3(...c.pos).sub(new THREE.Vector3(...c.tgt));
+  const tgt = input.mode==='free' ? bp.add(new THREE.Vector3(0,1.6,0)) : new THREE.Vector3(...c.tgt);
+  controls.target.copy(tgt);
+  camera.position.copy(tgt.clone().add(off));
+}
+/* ---- Instruments ----------------------------------------------------- */
+const KTS = 1.94384;
+let instTimer = 0;
+function fmtDeg(x){ return (x==null||!isFinite(x)) ? '—' : x.toFixed(0)+'°'; }
+function updateInstruments(){
+  if (!last.aero) return;
+  const s = last;
+  $('iTws').textContent = (input.tws * (input.gustOn ? gustFactor(S.t) : 1)).toFixed(1)+' m/s';
+  $('iAws').textContent = s.aws.toFixed(1)+' m/s';
+  $('iAwa').textContent = s.awa==null ? '—' : s.awa.toFixed(0)+'° ' + (s.awa>0?'(S of bow)':s.awa<0?'(P of bow)':'');
+  $('iBsp').textContent = (s.bsp*KTS).toFixed(2)+' kn';
+  $('iHdg').textContent = fmtDeg(((deg(S.psi)%360)+360)%360);
+  $('iLee').textContent = s.leeway==null ? '—' : s.leeway.toFixed(1)+'°';
+  $('iAoa').textContent = s.aero.aws<0.15 ? '—' : fmtDeg(s.sail.alpha);
+  $('iLift').textContent = s.lift.toFixed(0)+' N';
+  $('iDrag').textContent = s.drag.toFixed(0)+' N';
+  $('iFwd').textContent = s.fDrive.toFixed(0)+' N';
+  const heelTxt = input.mode==='fixed'
+    ? (isFinite(s.heelEq) ? s.heelEq.toFixed(1)+'° (predicted)' : '—')
+    : S.heel.toFixed(1)+'°';
+  $('iHeel').textContent = heelTxt;
+  const b = $('stateBadge'), lbl = s.aero.aws<0.15 ? 'NO FLOW' : s.aero.state.toUpperCase();
+  b.textContent = lbl;
+  b.className = s.aero.state==='approaching stall' ? 'st-approach' : s.aero.state==='stalled' ? 'st-stalled' : s.aero.state==='luffing' ? 'st-luff' : '';
+  if (s.aero.state==='stalled') b.id = 'stateBadge';
+}
+$('modelInfo').innerHTML = `
+<b>Convention.</b> +x′ forward, +y′ starboard; angles degrees. Apparent wind β: 0° = from the bow, + = from starboard.
+AoA α = |β| − |trim| (tack-folded); α &lt; 0 ⇒ backwinded ⇒ luffing (no lift, small flutter drag). The tack (+ = wind from starboard) selects the lift <i>side</i>: lift = tack·⊥(relative flow).<br><br>
+<b>Sail coefficients.</b> Pre-stall: C<sub>L</sub> = 0.095·|α| (deg), capped 1.55. Stall at 16° blends
+exp(−(α−16)/18) toward a flat-plate curve 0.9·sin 2α. Drag: 0.045 + 0.0045·|α| blending to
+1.95·sin²α once separated. q = ½·1.225·AWS². Lift ⟂ relative flow (sign from tack), drag ∥ relative flow — both tacks by symmetry.<br><br>
+<b>Water.</b> Keel/rudder are symmetric foils: C<sub>L</sub> from local flow angle, stall 14–15°; forces scale with ½·1025·v². Hull: quadratic surge drag (22 u + 105 u|u| N, +35% heeled) and strong lateral resistance; keel lift is perpendicular to local flow — no free thrust. Rudder needs water flow; zero speed ⇒ zero force.<br><br>
+<b>Heel.</b> I<sub>xx</sub>φ̈ = Σ(lateral force × height) − m·g·GM·sin φ − c·φ̇, valid to ±25° (warn) / ±40° (pause).<br><br>
+<b>Integration.</b> Semi-implicit Euler, dt = 1/120 s fixed with accumulator; NaN-guarded.<br><br>
+<b>Approximations.</b> Single rigid sail (no twist/depower), 2-D horizontal dynamics + roll, no pitch, no waves loading the hull, no sail-sheet dynamics, basin water still. This is a teaching model, not CFD or a VPP.`;
+
+/* ---- Main loop -------------------------------------------------------- */
+const clock = new THREE.Clock();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+let prevBoat = new THREE.Vector3();
+function animate(){
+  requestAnimationFrame(animate);
+  const dtFrame = Math.min(clock.getDelta(), 0.1);
+  if (!input.paused){
+    refreshLast(advance(dtFrame, S, input));
+    if (input.mode==='free'){
+      trackTimer += dtFrame*input.simSpeed;
+      if (trackTimer > 0.25){ trackTimer = 0; trackPush(S.x, S.z); }
+      sampleAcc += dtFrame*input.simSpeed;
+      while (sampleAcc > CH_DT){ sampleAcc -= CH_DT; sampleCharts(); }
+      if (S.boundaryHit) showAlert('<b>Basin boundary reached.</b> The boat stopped at the edge of the test basin — reset to sail again.', true);
+      if (S.heelLimitHit) showAlert('<b>Heel exceeded 40°.</b> Outside the restoring-moment model’s valid range — simulation paused rather than fake a capsize.', true);
+    } else {
+      sampleAcc += dtFrame*input.simSpeed;
+      while (sampleAcc > CH_DT){ sampleAcc -= CH_DT; sampleCharts(); }
+    }
+    updateFlow(dtFrame, S.t, { x: S.x, z: S.z }, { d2: last.sail.d2, state: last.sail.state, stallFactor: last.sail.stallFactor }, S.psi);
+  }
+  /* visuals */
+  boatGroup.position.set(S.x, 0, S.z);
+  boatGroup.rotation.y = Math.PI/2 - S.psi;
+  heelGroup.rotation.x = -rad(S.heel);
+  updateSail(input.trim, last.sail ? (last.sail.tack || 1) : 1);
+  rudderGroup.rotation.y = rad(input.rudder);
+
+  if (input.vecVisible && last.aero){
+    const s = last.sail;
+    const toW = f2 => bodyToWorld(f2, S.psi);
+    const dir = f2 => { const w = toW(f2); const m = Math.hypot(w.x, w.z); return m>1e-9 ? {x:w.x/m, z:w.z/m} : {x:0,z:0}; };
+    ceAnchor.getWorldPosition(_v1);
+    if (s.aws > 0.15){
+      const Ldir = dir({ x: s.tack*perpCCW(s.d2).x*s.lift, y: s.tack*perpCCW(s.d2).y*s.lift });
+      const Ddir = dir({ x: s.d2.x*s.drag, y: s.d2.y*s.drag });
+      setArrow(arrows.lift, _v1, Ldir, clamp(s.lift/ARROW_FORCE_SCALE, ARROW_MIN, ARROW_MAX));
+      setArrow(arrows.drag, _v1, Ddir, clamp(s.drag/ARROW_FORCE_SCALE, ARROW_MIN, ARROW_MAX));
+      const mTot = Math.hypot(s.Fx, s.Fy);
+      setArrow(arrows.aero, _v1, dir({x:s.Fx,y:s.Fy}), clamp(mTot/ARROW_FORCE_SCALE, ARROW_MIN, ARROW_MAX));
+    } else { arrows.lift.visible = arrows.drag.visible = arrows.aero.visible = false; }
+    keelAnchor.getWorldPosition(_v2);
+    const kF = Math.hypot(last.keel.Fx, last.keel.Fy);
+    if (kF > 5) setArrow(arrows.keel, _v2, dir({x:last.keel.Fx,y:last.keel.Fy}), clamp(kF/ARROW_FORCE_SCALE, ARROW_MIN, ARROW_MAX));
+    else arrows.keel.visible = false;
+    headAnchor.getWorldPosition(_v1);
+    const aw = last.air || {x:0,z:0}; const awm = Math.hypot(aw.x, aw.z);
+    if (awm > 0.05) setArrow(arrows.twind, _v1, {x:aw.x/awm, z:aw.z/awm}, awm/ARROW_WIND_SCALE);
+    else arrows.twind.visible = false;
+    const ap = last.apparent || {x:0,z:0}; const apm = Math.hypot(ap.x, ap.z);
+    if (apm > 0.05) setArrow(arrows.awind, _v1, {x:ap.x/apm, z:ap.z/apm}, apm/ARROW_WIND_SCALE);
+    else arrows.awind.visible = false;
+  } else for (const k in arrows) arrows[k].visible = false;
+
+  /* free-mode follow camera */
+  if (input.mode==='free'){
+    const bp = new THREE.Vector3(S.x, 0, S.z);
+    const delta = bp.clone().sub(prevBoat);
+    camera.position.add(delta);
+    controls.target.add(delta);
+    prevBoat.copy(bp);
+  } else prevBoat.set(S.x, 0, S.z);
+
+  controls.update();
+  waterUniforms.uTime.value = S.t;
+  renderer.render(scene, camera);
+
+  instTimer += dtFrame;
+  if (instTimer > 0.12){ instTimer = 0; updateInstruments();
+    $('simClock').textContent = 't = '+S.t.toFixed(1)+' s'; }
+  drawChart($('chartSpeed'), chartSpeed, 0, Math.max(8, Math.max(...chartSpeed)*1.15), '#41d9ff', ' kn');
+  drawChart($('chartHeel'), chartHeel, -40, 40, '#ffb454', '°');
+}
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+window.__aeronautReady = true;
+/* read-only debug handle (used by tests; harmless in normal use) */
+window.__lab = { get state(){ return { ...S }; }, get input(){ return { ...input }; }, get acc(){ return acc; } };
+syncInputs(); syncPlayBtn(); updateBanner();
+applyPreset('beamDefault');
+runChecks();
+animate();
+</script>
+<script>
+/* Watchdog: if the module above never ran (CDN blocked / no importmap),
+   tell the user plainly instead of a blank page. */
+setTimeout(function(){
+  if (!window.__aeronautReady) {
+    var o = document.getElementById('errOverlay'), t = document.getElementById('errTitle'), m = document.getElementById('errMsg');
+    o.style.display = 'flex'; t.textContent = 'Could not load 3D engine';
+    m.innerHTML = 'Three.js failed to load from <code>cdn.jsdelivr.net</code>.<br>' +
+      'Check your internet connection (the file itself needs no server) and reload.<br>' +
+      '<span style="color:var(--muted)">If you are offline, allow the CDN once — the app is fully self-contained otherwise.</span>';
+  }
+}, 8000);
+</script>
+</body>
+</html>
