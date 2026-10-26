@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AERONAUT / Sailing Physics Lab</title>
+<style>
+  :root{
+    --bg:#050a14;
+    --panel:rgba(9,17,29,0.88);
+    --line:rgba(120,180,220,0.15);
+    --line-strong:rgba(120,200,240,0.32);
+    --txt:#dfe9f2;
+    --dim:#7d93a8;
+    --cyan:#38d6e8;
+    --cyan-dim:rgba(56,214,232,0.55);
+    --amber:#ffb545;
+    --red:#ff6b5d;
+    --green:#5ee0a0;
+    --violet:#b48cff;
+    --font:'Inter','SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --mono:'SF Mono',ui-monospace,Menlo,Consolas,'Roboto Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--font);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;z-index:0}
+  canvas{display:block;outline:none}
+
+  #app{position:fixed;inset:0;z-index:2;display:grid;grid-template-columns:300px minmax(0,1fr) 324px;grid-template-rows:58px minmax(0,1fr);gap:10px;padding:10px;pointer-events:none}
+  #topbar{grid-column:1 / -1;display:flex;align-items:center;gap:14px;padding:0 14px;background:linear-gradient(90deg,rgba(8,14,24,0.92),rgba(8,14,24,0.55));border:1px solid var(--line);border-radius:10px;pointer-events:auto;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #left{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:10px;min-height:0;pointer-events:auto}
+  #right{grid-column:3;grid-row:2;display:flex;flex-direction:column;gap:10px;min-height:0;pointer-events:auto}
+  #center{grid-column:2;grid-row:2;position:relative;pointer-events:none}
+
+  .brand{display:flex;flex-direction:column;line-height:1.1}
+  .brand .t{font-size:15px;font-weight:700;letter-spacing:0.34em;color:var(--txt)}
+  .brand .t b{color:var(--cyan);font-weight:700}
+  .brand .s{font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--dim);margin-top:4px}
+  .sep{width:1px;height:26px;background:var(--line-strong)}
+  .status{display:flex;gap:6px;align-items:center}
+  .chip{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:4px 9px;border-radius:999px;border:1px solid var(--line-strong);color:var(--dim);background:rgba(255,255,255,0.02);white-space:nowrap}
+  .chip.on{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(56,214,232,0.08)}
+  .chip.warn{color:var(--amber);border-color:rgba(255,181,69,0.5);background:rgba(255,181,69,0.08)}
+  .chip.bad{color:var(--red);border-color:rgba(255,107,93,0.5);background:rgba(255,107,93,0.08)}
+  #stateBadge{font-weight:600}
+  .spacer{flex:1}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .panel.hgrow{flex:1}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .phead h2{font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:7px}
+  .phead h2::before{content:'';width:5px;height:5px;border-radius:1px;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  .phead .sub{font-size:9.5px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase}
+  .pbody{padding:10px 11px;overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:rgba(120,180,220,0.3) transparent}
+  .pbody::-webkit-scrollbar{width:6px}
+  .pbody::-webkit-scrollbar-thumb{background:rgba(120,180,220,0.3);border-radius:3px}
+
+  .grp{margin-bottom:11px}
+  .grp:last-child{margin-bottom:0}
+  .grp>.glabel{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+  .grp>.glabel::after{content:'';flex:1;height:1px;background:var(--line)}
+  .row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .row:last-child{margin-bottom:0}
+  .row label{font-size:11px;color:var(--dim);flex:0 0 auto;min-width:0}
+  .row .val{font-family:var(--mono);font-size:11px;color:var(--txt);margin-left:auto;flex:0 0 auto;min-width:60px;text-align:right;font-variant-numeric:tabular-nums}
+  input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:16px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:linear-gradient(90deg,rgba(56,214,232,0.55) 0%,rgba(56,214,232,0.55) var(--p,50%),rgba(255,255,255,0.12) var(--p,50%),rgba(255,255,255,0.12) 100%)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#eaf6ff;border:1.5px solid var(--cyan);margin-top:-4px;box-shadow:0 0 7px rgba(56,214,232,0.65)}
+  input[type=range]:disabled{opacity:0.4;cursor:not-allowed}
+  input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:rgba(255,255,255,0.12)}
+  input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#eaf6ff;border:1.5px solid var(--cyan)}
+
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .btnrow.three{grid-template-columns:1fr 1fr 1fr}
+  .btnrow.four{grid-template-columns:1fr 1fr 1fr 1fr}
+  button{font-family:var(--font);font-size:10.5px;letter-spacing:0.06em;color:var(--txt);background:rgba(255,255,255,0.045);border:1px solid var(--line-strong);border-radius:6px;padding:7px 6px;cursor:pointer;transition:all .14s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  button:hover{background:rgba(56,214,232,0.13);border-color:var(--cyan-dim)}
+  button:active{transform:translateY(1px)}
+  button.on{background:rgba(56,214,232,0.2);border-color:var(--cyan);color:#eafcff;box-shadow:inset 0 0 12px rgba(56,214,232,0.18)}
+  button.primary{background:rgba(56,214,232,0.14);border-color:var(--cyan-dim)}
+  button.sm{font-size:9.5px;padding:5px 6px}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px;font-size:11px;color:var(--txt);cursor:pointer;user-select:none}
+  .toggle input{display:none}
+  .sw{width:26px;height:14px;border-radius:8px;background:rgba(255,255,255,0.12);border:1px solid var(--line-strong);position:relative;flex:0 0 auto;transition:all .16s}
+  .sw::after{content:'';position:absolute;top:1.5px;left:1.5px;width:9px;height:9px;border-radius:50%;background:var(--dim);transition:all .16s}
+  .toggle input:checked+.sw{background:rgba(56,214,232,0.3);border-color:var(--cyan)}
+  .toggle input:checked+.sw::after{left:14px;background:var(--cyan);box-shadow:0 0 6px var(--cyan)}
+
+  .readouts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:6px;overflow:hidden}
+  .ro{background:rgba(8,15,26,0.92);padding:6px 8px}
+  .ro .k{font-size:8.5px;letter-spacing:0.13em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ro .v{font-family:var(--mono);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--txt);margin-top:1px;white-space:nowrap}
+  .ro .v u{font-size:9px;color:var(--dim);text-decoration:none;margin-left:2px}
+  .ro.hl .v{color:var(--cyan)}
+  .ro.amber .v{color:var(--amber)}
+
+  .chartbox{margin-top:8px;background:rgba(8,15,26,0.92);border:1px solid var(--line);border-radius:6px;padding:5px 6px 3px}
+  .chartbox .cl{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+  .chartbox canvas{width:100%;height:46px;display:block}
+
+  .preset{display:flex;align-items:flex-start;gap:7px;width:100%;text-align:left;padding:7px 8px;margin-bottom:5px;font-size:10.5px;line-height:1.25}
+  .preset .num{font-family:var(--mono);font-size:9px;color:var(--cyan);flex:0 0 auto;margin-top:1px}
+  .preset.on .num{color:#fff}
+  #presetNote{margin-top:7px;padding:8px 9px;border-left:2px solid var(--amber);background:rgba(255,181,69,0.06);font-size:10.5px;line-height:1.45;color:#e8dcc8;border-radius:0 5px 5px 0;min-height:34px}
+
+  #rigNote{font-size:10px;line-height:1.45;color:#9db4c6;margin-top:8px;padding:6px 8px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,0.02);border-radius:0 4px 4px 0}
+
+  details{margin-top:8px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,0.015)}
+  details>summary{cursor:pointer;padding:7px 9px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::after{content:'+';font-family:var(--mono);color:var(--cyan);flex:0 0 auto}
+  details[open]>summary::after{content:'−'}
+  details[open]>summary{color:var(--cyan);border-bottom:1px solid var(--line)}
+  details .dbody{padding:8px 9px;font-size:10.5px;line-height:1.5;color:#c3d2e0}
+  details .dbody p{margin-bottom:7px}
+  details .dbody p:last-child{margin-bottom:0}
+  details .dbody code{font-family:var(--mono);font-size:10px;color:var(--cyan);background:rgba(56,214,232,0.09);padding:1px 4px;border-radius:3px}
+  details .dbody b{color:#fff;font-weight:600}
+  .tag{font-family:var(--mono);font-size:9px;letter-spacing:0.04em;color:var(--green);margin-left:auto}
+  .tag.bad{color:var(--red)}
+
+  .checks{display:flex;flex-direction:column;gap:3px}
+  .check{display:flex;align-items:flex-start;gap:7px;padding:4px 6px;border-radius:4px;background:rgba(255,255,255,0.02);font-size:10px;line-height:1.35}
+  .check .mark{font-family:var(--mono);font-weight:700;flex:0 0 auto;width:12px;text-align:center}
+  .check.pass .mark{color:var(--green)}
+  .check.fail .mark{color:var(--red)}
+  .check.fail{background:rgba(255,107,93,0.08)}
+  .check .nm{flex:1}
+  .check .dt{font-family:var(--mono);font-size:9px;color:var(--dim);flex:0 0 auto}
+  .checksum{margin-top:6px;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);display:flex;justify-content:space-between}
+  .checksum b{color:var(--green)}
+  .checksum b.bad{color:var(--red)}
+
+  #legend{position:absolute;left:12px;bottom:12px;pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;backdrop-filter:blur(10px);font-size:9.5px;min-width:196px}
+  #legend .lt{font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  #legend .li{display:flex;align-items:center;gap:6px;margin-bottom:2.5px;color:#c8d6e3}
+  #legend .sw2{width:14px;height:2px;border-radius:1px;flex:0 0 auto}
+  #legend .scale{margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-family:var(--mono);font-size:9px;color:var(--dim);line-height:1.4}
+  #legend .cfd{margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;letter-spacing:0.04em;color:var(--amber);line-height:1.4}
+  #hint{position:absolute;right:12px;bottom:12px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(180,200,220,0.45);pointer-events:none;text-align:right}
+
+  #toast{position:absolute;top:14px;left:50%;transform:translateX(-50%);pointer-events:auto;background:rgba(9,17,29,0.95);border:1px solid rgba(255,181,69,0.55);border-radius:8px;padding:10px 16px;display:none;align-items:center;gap:12px;max-width:560px;box-shadow:0 8px 30px rgba(0,0,0,0.5);backdrop-filter:blur(12px);z-index:5}
+  #toast .tt{font-size:12px;font-weight:600;color:var(--amber);letter-spacing:0.05em;margin-bottom:2px}
+  #toast .td{font-size:11px;color:#cfdae6;line-height:1.4}
+  #toast button{flex:0 0 auto}
+
+  #fatal{position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#0b1424,#04070d)}
+  #fatal .card{max-width:540px;padding:26px 30px;border:1px solid rgba(255,107,93,0.4);border-radius:12px;background:rgba(12,18,30,0.9);text-align:center}
+  #fatal h1{font-size:13px;letter-spacing:0.26em;text-transform:uppercase;color:var(--red);margin-bottom:12px}
+  #fatal p{font-size:12.5px;line-height:1.6;color:#b9c8d6}
+  #fatal code{font-family:var(--mono);font-size:11px;color:var(--cyan);background:rgba(56,214,232,0.1);padding:2px 5px;border-radius:3px}
+
+  @media (max-width:1360px){
+    #app{grid-template-columns:272px minmax(0,1fr) 296px;gap:8px;padding:8px;grid-template-rows:54px minmax(0,1fr)}
+    .brand .t{font-size:13px}
+    .brand .s{font-size:9.5px}
+    .chip{font-size:9px;padding:3px 7px}
+  }
+  @media (max-width:1180px){
+    #app{grid-template-columns:minmax(0,1fr) 290px;grid-template-rows:52px minmax(0,1fr) 262px;grid-template-areas:'top top' 'view side' 'ctrl side'}
+    #topbar{grid-area:top}
+    #left{grid-area:ctrl;flex-direction:row;overflow-x:auto}
+    #left .panel{flex:1 1 0;min-width:210px}
+    #right{grid-area:side}
+    #center{grid-area:view}
+    #legend{display:none}
+  }
+  @media (max-width:820px){
+    #app{grid-template-columns:minmax(0,1fr);grid-template-rows:52px 38vh minmax(0,1fr);grid-template-areas:'top' 'view' 'side'}
+    #left{display:none}
+    #hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="t">AERON<b>AUT</b></div>
+      <div class="s">Sailing Physics Lab</div>
+    </div>
+    <div class="sep"></div>
+    <div class="status">
+      <span class="chip" id="modeChip">FIXED TEST RIG</span>
+      <span class="chip" id="runChip">RUNNING</span>
+      <span class="chip" id="speedChip">1×</span>
+      <span class="chip" id="stateBadge">ATTACHED</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="status">
+      <span class="chip" id="twaChip">TWA —</span>
+      <span class="chip" id="clockChip">t 0.0 s</span>
+    </div>
+  </header>
+
+  <div id="left">
+    <div class="panel">
+      <div class="phead"><h2>Environment</h2><span class="sub">true wind</span></div>
+      <div class="pbody">
+        <div class="grp">
+          <div class="row"><label for="iTws">True wind speed</label><span class="val" id="oTws">7.0 m/s</span></div>
+          <input type="range" id="iTws" min="0" max="20" step="0.1" value="7">
+          <div class="row" style="margin-top:2px"><label for="iTwd">Wind from</label><span class="val" id="oTwd">090°</span></div>
+          <input type="range" id="iTwd" min="0" max="359" step="1" value="90">
+        </div>
+        <div class="grp">
+          <div class="glabel">Gusts</div>
+          <div class="toggle"><span>Gust modulation</span><label style="margin-left:auto"><input type="checkbox" id="iGustOn"><span class="sw"></span></label></div>
+          <div class="row"><label for="iGustAmp">Gust strength</label><span class="val" id="oGustAmp">30 %</span></div>
+          <input type="range" id="iGustAmp" min="0" max="1" step="0.01" value="0.30">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Boat &amp; Rig</h2><span class="sub">trim</span></div>
+      <div class="pbody">
+        <div class="grp">
+          <div class="row"><label for="iTrim">Sail trim</label><span class="val" id="oTrim">−75°</span></div>
+          <input type="range" id="iTrim" min="-85" max="85" step="1" value="-75">
+          <div class="row" style="margin-top:2px"><label for="iRudder">Rudder</label><span class="val" id="oRudder">0°</span></div>
+          <input type="range" id="iRudder" min="-30" max="30" step="1" value="0">
+        </div>
+        <div class="grp">
+          <div class="row"><label for="iHeading">Initial heading</label><span class="val" id="oHeading">000°</span></div>
+          <input type="range" id="iHeading" min="0" max="359" step="1" value="0">
+          <div class="row" style="margin-top:2px"><label for="iMass">Boat mass</label><span class="val" id="oMass">2200 kg</span></div>
+          <input type="range" id="iMass" min="900" max="4500" step="50" value="2200">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Simulation</h2><span class="sub">integration</span></div>
+      <div class="pbody">
+        <div class="grp">
+          <div class="btnrow">
+            <button id="bFixed" class="on">Fixed rig</button>
+            <button id="bFree">Free sailing</button>
+          </div>
+          <div class="btnrow three" style="margin-top:6px">
+            <button id="bPlay" class="primary">Pause</button>
+            <button id="bReset">Reset</button>
+            <button id="bStep" title="Advance 1 s of simulation time while paused">Step 1 s</button>
+          </div>
+          <div class="glabel" style="margin-top:9px">Sim speed</div>
+          <div class="btnrow four">
+            <button id="bS025" class="sm">0.25×</button>
+            <button id="bS05" class="sm">0.5×</button>
+            <button id="bS1" class="sm on">1×</button>
+            <button id="bS2" class="sm">2×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel hgrow">
+      <div class="phead"><h2>View</h2><span class="sub">display</span></div>
+      <div class="pbody">
+        <div class="grp">
+          <div class="toggle"><span>Airflow particles</span><label style="margin-left:auto"><input type="checkbox" id="iAir" checked><span class="sw"></span></label></div>
+          <div class="row"><label for="iPdens">Particle density</label><span class="val" id="oPdens">600</span></div>
+          <input type="range" id="iPdens" min="200" max="2400" step="100" value="600">
+          <div class="toggle"><span>Force vectors</span><label style="margin-left:auto"><input type="checkbox" id="iVec" checked><span class="sw"></span></label></div>
+          <div class="toggle"><span>Wake &amp; track</span><label style="margin-left:auto"><input type="checkbox" id="iWake" checked><span class="sw"></span></label></div>
+          <div class="toggle"><span>Underwater view</span><label style="margin-left:auto"><input type="checkbox" id="iUnder"><span class="sw"></span></label></div>
+        </div>
+        <div class="grp">
+          <div class="glabel">Camera</div>
+          <div class="btnrow">
+            <button id="cPersp" class="sm on">Perspective</button>
+            <button id="cTop" class="sm">Overhead</button>
+            <button id="cStern" class="sm">Stern</button>
+            <button id="cSail" class="sm">Sail close-up</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="center">
+    <div id="toast">
+      <div>
+        <div class="tt" id="toastTitle"></div>
+        <div class="td" id="toastText"></div>
+      </div>
+      <button id="toastBtn">Reset</button>
+    </div>
+    <div id="legend">
+      <div class="lt">Vectors</div>
+      <div class="li"><span class="sw2" style="background:#7fb0ff"></span>True wind · air travel</div>
+      <div class="li"><span class="sw2" style="background:#38d6e8"></span>Apparent wind</div>
+      <div class="li"><span class="sw2" style="background:#5ee0a0"></span>Sail lift</div>
+      <div class="li"><span class="sw2" style="background:#ffb545"></span>Sail drag</div>
+      <div class="li"><span class="sw2" style="background:#ff8a3d"></span>Total aero force</div>
+      <div class="li"><span class="sw2" style="background:#b48cff"></span>Keel force</div>
+      <div class="scale" id="legendScale">1 m ≙ 450 N · wind 1 m ≙ 4 m/s · arrows at application points</div>
+      <div class="cfd">Illustrative airflow — not a CFD solution.</div>
+    </div>
+    <div id="hint">Drag orbit · Scroll zoom · Right-drag pan</div>
+  </div>
+
+  <div id="right">
+    <div class="panel hgrow">
+      <div class="phead"><h2>Instrumentation</h2><span class="sub">live</span></div>
+      <div class="pbody">
+        <div class="readouts">
+          <div class="ro"><div class="k">True wind</div><div class="v" id="rTws">—</div></div>
+          <div class="ro"><div class="k">Apparent wind</div><div class="v" id="rAws">—</div></div>
+          <div class="ro"><div class="k">App. angle β</div><div class="v" id="rAwa">—</div></div>
+          <div class="ro"><div class="k">Boat speed</div><div class="v" id="rSpd">—</div></div>
+          <div class="ro"><div class="k">Heading</div><div class="v" id="rHdg">—</div></div>
+          <div class="ro"><div class="k">Leeway</div><div class="v" id="rLee">—</div></div>
+          <div class="ro"><div class="k">Sail AoA</div><div class="v" id="rAoa">—</div></div>
+          <div class="ro"><div class="k">Lift / Drag</div><div class="v" id="rLD">—</div></div>
+          <div class="ro hl"><div class="k">Forward drive</div><div class="v" id="rFwd">—</div></div>
+          <div class="ro amber"><div class="k">Heel</div><div class="v" id="rHeel">—</div></div>
+          <div class="ro"><div class="k">Heel moment</div><div class="v" id="rHeelm">—</div></div>
+          <div class="ro"><div class="k">Yaw moment</div><div class="v" id="rYaw">—</div></div>
+        </div>
+        <div id="rigNote"></div>
+        <div class="chartbox">
+          <div class="cl"><span>Boat speed · last 30 s</span><span id="cSpdNow">—</span></div>
+          <canvas id="cSpeed" width="600" height="92"></canvas>
+        </div>
+        <div class="chartbox">
+          <div class="cl"><span>Heel · last 30 s</span><span id="cHeelNow">—</span></div>
+          <canvas id="cHeel" width="600" height="92"></canvas>
+        </div>
+
+        <details id="dModel">
+          <summary>Lift &amp; drag coefficient model</summary>
+          <div class="dbody">
+            <p><b>Angle of attack.</b> The boom angle τ is measured from the centreline (+ = boom to starboard). The apparent wind angle β is signed from the bow (+ = wind <i>from</i> starboard). The signed sail AoA is <code>δ = β + τ</code> (wrapped to ±180°). Sheet the boom to leeward (<code>τ</code> opposite in sign to <code>β</code>) and <code>|δ| = |β| − |τ|</code>; sheet it to windward and <code>|δ| &gt; 90°</code> — the sail is backwinded and luffs.</p>
+            <p><b>Attached flow (|δ| ≤ 13°).</b> <code>CL = 6.4·|δ|</code> per radian, capped at 1.45. Small-angle lift is linear and continuous through zero.</p>
+            <p><b>Approaching stall (13–27°).</b> CL falls linearly from 1.45 to 0.55; CD rises steeply as the boundary layer separates.</p>
+            <p><b>Stalled (27–90°).</b> CL decays to zero at broadside; CD rises to a flat-plate maximum of 2.0 near 90°. This is the regime that drives a boat dead downwind.</p>
+            <p><b>Backwinded (|δ| &gt; 90°).</b> No lift. The sail is a bluff plate: <code>F = q·A·CDp·(d̂·n̂)·n̂</code> along the sail normal, with <code>CDp = 1.15 + 0.8·sin²(180−|δ|)</code>. This is the force that lets a backed sail shove the bow out of irons.</p>
+            <p><b>Directions.</b> Drag acts along the relative air velocity <code>d̂</code>; lift is perpendicular, <code>l̂ = sign(δ)·perp(d̂)</code> — the same rule on both tacks. <code>q = ½·ρ·AWS²</code>. Bounded and continuous at zero wind: <code>q</code> vanishes, directions stay finite.</p>
+            <p><b>Not CFD.</b> A plausible single-sail envelope for an exhibit, not measured polar data.</p>
+          </div>
+        </details>
+
+        <details id="dModel2">
+          <summary>Water forces, heel &amp; conventions</summary>
+          <div class="dbody">
+            <p><b>Frames.</b> World: +X east, −Z north, +Y up; heading ψ clockwise from north. Body: u forward, v starboard, yaw rate ω positive to starboard, heel φ positive to starboard. Trim τ positive to starboard; rudder positive turns the bow to starboard.</p>
+            <p><b>Apparent wind.</b> <code>v_app = v_true − v_CE</code>, where the centre-of-effort velocity includes the boat's translation and <code>ω × r</code> (the stern swings opposite the bow).</p>
+            <p><b>Hull.</b> Quadratic surge resistance plus a steep wave-making wall above hull speed (3.4 m/s) so the boat cannot be driven faster than the wind that drives it. Lateral resistance is a separate quadratic term.</p>
+            <p><b>Keel &amp; rudder.</b> Symmetric foils. Local water velocity at offset <code>(a,b)</code> is <code>(u − ωb, v + ωa)</code>. AoA is the signed angle between the local flow and the foil chord; lift is perpendicular to the local flow, drag opposes it. The rudder chord rotates with the rudder angle, so a centred rudder is a symmetric foil and a deflected one produces a stern force. No water flow ⇒ exactly zero force.</p>
+            <p><b>Heel.</b> <code>I_roll·φ̈ = M_heel − m·g·GM·sin φ − C_roll·φ̇</code>, GM = 0.62 m, valid to ±38°. The sim pauses at 40° rather than pretending to model a capsize.</p>
+            <p><b>Integration.</b> Fixed 1/240 s semi-implicit Euler substeps in an accumulator; at most 0.25 s of catch-up per rendered frame, so a backgrounded tab cannot explode the state. Physics is independent of render frame rate.</p>
+            <p><b>Airflow.</b> Particles advect through an analytic illustrative field (free-stream + sail deflection + stall-scaled wake). They visualise the aerodynamic state; they never compute the forces.</p>
+          </div>
+        </details>
+
+        <details id="dChecks">
+          <summary>Physics checks <span class="tag" id="checkTag">—</span></summary>
+          <div class="dbody">
+            <div class="checks" id="checkList"></div>
+            <div class="checksum"><span>Result</span><span id="checkSum">—</span></div>
+            <p style="margin-top:8px;color:#7d93a8;font-size:9.5px">Computed at load through the same force pipeline the simulation uses. Failures are reported as failures.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Guided experiments</h2><span class="sub">presets</span></div>
+      <div class="pbody">
+        <button class="preset on" data-p="beam"><span class="num">01</span><span>Beam reach</span></button>
+        <button class="preset" data-p="close"><span class="num">02</span><span>Close-hauled</span></button>
+        <button class="preset" data-p="down"><span class="num">03</span><span>Dead downwind</span></button>
+        <button class="preset" data-p="stall"><span class="num">04</span><span>Stall demonstration</span></button>
+        <button class="preset" data-p="gust"><span class="num">05</span><span>Gust response</span></button>
+        <div id="presetNote">Lift does the work: the sail is set at a small angle of attack and the keel converts lateral force into forward drive.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="fatal">
+  <div class="card">
+    <h1 id="fatalTitle">Lab unavailable</h1>
+    <p id="fatalMsg"></p>
+  </div>
+</div>
+
+<script>
+(function(){
+  function fail(title, msg){
+    var f = document.getElementById('fatal');
+    document.getElementById('fatalTitle').textContent = title;
+    document.getElementById('fatalMsg').innerHTML = msg;
+    f.style.display = 'flex';
+  }
+  window.__labFail = fail;
+  try {
+    var c = document.createElement('canvas');
+    var gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (!gl) fail('WebGL not available',
+      'This browser or GPU configuration did not provide a WebGL context. The lab needs hardware WebGL to render. Enable hardware acceleration in your browser settings, or open the file in another modern browser.');
+  } catch(e) {
+    fail('WebGL not available', 'The browser threw while creating a WebGL context: <code>' + e.message + '</code>');
+  }
+  setTimeout(function(){
+    if (!window.__aeronautReady && document.getElementById('fatal').style.display !== 'flex') {
+      fail('Three.js could not be loaded',
+        'The lab loads Three.js 0.160.0 from <code>unpkg.com</code>. That request did not complete, so nothing can render. Check your network connection (or any content blocker) and reload. No local server is required — the file runs directly from disk.');
+    }
+  }, 8000);
+})();
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =====================================================================
+   AERONAUT / Sailing Physics Lab
+   PART 2 — configuration, conventions, force model, integration.
+
+   CONVENTIONS (SI units internally; angles in degrees at the interface)
+   ---------------------------------------------------------------------
+   World:  +X east, −Z north, +Y up. Heading ψ (compass) clockwise from
+           north. Forward f = (sin ψ, −cos ψ); starboard s = (cos ψ, sin ψ).
+   Body:   x′ forward, y′ starboard, z′ down (so x′×y′ = z′).
+           u = forward speed, v = starboard speed,
+           ω = yaw rate (+ turns the bow to starboard),
+           φ = heel (+ to starboard), φ̇ = roll rate.
+   Wind:   "wind from" θ is nautical (0 = from north). The air VELOCITY
+           vector is (−sin θ, cos θ)·V — i.e. it travels toward θ+180°.
+           β = apparent wind angle, signed from the bow, + = FROM starboard.
+   Sail:   τ = boom angle from the centreline, + = boom to STARBOARD,
+           0 = sheeted on the centreline, ±90° = athwartships.
+           Signed AoA δ = wrap(β + τ). |δ| ≤ 90°: flow on the leeward face.
+           |δ| > 90°: backwinded (luffing) — bluff-plate force on the normal.
+   Rudder: δr + turns the bow to starboard (trailing edge to starboard).
+   ===================================================================== */
+
+/* ------------------------------------------------------------------ */
+/* 1. CONFIGURATION — every tunable coefficient in one place           */
+/* ------------------------------------------------------------------ */
+const CFG = {
+  physics: { dt: 1/240, maxSubsteps: 90, maxCatchup: 0.25 },
+
+  air:   { rho: 1.225 },                       // kg/m³
+  water: { rho: 1025, g: 9.81 },               // kg/m³, m/s²
+
+  sail: {
+    area: 14.0,                                // m²
+    ceFwd: -0.25,                              // CE fore-aft offset from CG (m, − = aft)
+    ceHeight: 4.6,                             // CE height above CG (m)
+    clMax: 1.45, stallDeg: 13, clPost: 0.55,   // lift envelope
+    cdMin: 0.08, cdSlope: 0.006,               // skin/induced drag
+    cdStall: 1.0, cdPlate: 0.85, cdCap: 2.0,   // separated-flow drag
+    cdBluff: 1.15, cdBluffPlate: 0.8,          // backwinded plate
+  },
+
+  keel: {
+    area: 1.15, xFwd: -0.45, belowCG: 1.15,
+    clMax: 1.05, clSlope: 0.075, stallDeg: 14, clPost: 0.5, cdMin: 0.02, cdSlope: 0.0016,
+    cdStall: 0.9, cdPlate: 0.7, cdCap: 1.7,
+  },
+
+  rudder: {
+    area: 0.32, xFwd: -3.30, belowCG: 0.50,
+    clMax: 1.05, clSlope: 0.070, stallDeg: 15, clPost: 0.5, cdMin: 0.025, cdSlope: 0.002,
+    cdStall: 0.9, cdPlate: 0.7, cdCap: 1.6,
+  },
+
+  hull: {
+    surgeLin: 16, surgeQuad: 60,              // N per m/s and per (m/s)²
+    waveK: 45, hullSpeed: 3.4,                 // wave-making wall (m/s)
+    swayLin: 3000, swayQuad: 9000,             // lateral resistance (hull side)
+    yawDamp: 9000,                             // N·m·s/rad
+    rollDamp: 5200,                            // N·m·s/rad
+    heelDragGain: 0.35,                        // +35% surge drag when heeled 90°
+  },
+
+  boat: {
+    massMin: 900, massMax: 4500,
+    GM: 0.62,                                  // metacentric height (m)
+    rollK: 1.5, yawK: 2.6,                     // radii of gyration (m)
+    heelWarnDeg: 25, heelLimitDeg: 40,         // model validity
+    speedCap: 20,                              // safety clamp only
+  },
+
+  world: { basinX: 60, basinZ: 30 },           // free-sailing boundary (± m)
+  gustWave: [[0.37, 0.50, 0.0], [0.93, 0.30, 1.7], [2.11, 0.20, 0.4]],
+};
+
+/* Inputs (all UI-facing; overridable by the physics checks) ---------- */
+const input = {
+  tws: 7, wdirFrom: 90, gustFrac: 0.30, gustOn: false,
+  trim: -75, rudder: 0, heading: 0, mass: 2200,
+  mode: 'fixed', simSpeed: 1, paused: false,
+  flowVisible: true, flowDensity: 600, vecVisible: true,
+  wakeVisible: true, underwater: false,
+};
+
+/* ------------------------------------------------------------------ */
+/* 2. MATH HELPERS                                                     */
+/* ------------------------------------------------------------------ */
+const rad = d => d * Math.PI / 180;
+const deg = r => r * 180 / Math.PI;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+function wrapPi(a){
+  a = (a + Math.PI) % (2 * Math.PI);
+  if (a < 0) a += 2 * Math.PI;
+  return a - Math.PI;
+}
+function smoothstep(e0, e1, x){
+  const t = clamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+const fwdVec = psi => ({ x: Math.sin(psi), z: -Math.cos(psi) });
+const stbVec = psi => ({ x: Math.cos(psi), z: Math.sin(psi) });
+const perpCCW = v => ({ x: -v.y, y: v.x });
+const bodyToWorld = (f2, psi) => {
+  const f = fwdVec(psi), s = stbVec(psi);
+  return { x: f2.x * f.x + f2.y * s.x, z: f2.x * f.z + f2.y * s.z };
+};
+const worldToBody = (w, psi) => {
+  const f = fwdVec(psi), s = stbVec(psi);
+  return { x: w.x * f.x + w.z * f.z, y: w.x * s.x + w.z * s.z };
+};
+const normDeg = d => ((d % 360) + 360) % 360;
+
+/* ------------------------------------------------------------------ */
+/* 3. ENVIRONMENT — deterministic gusts and true wind                  */
+/* ------------------------------------------------------------------ */
+/* Unit-mean, bounded (±1) sum of incommensurate sines. Deterministic in
+   simulation time, so pausing freezes the gust cycle exactly. */
+function gustFactor(t, inp = input){
+  let g = 0;
+  for (const [om, amp, ph] of CFG.gustWave) g += amp * Math.sin(om * t + ph);
+  return 1 + inp.gustFrac * g;
+}
+function trueWindSpeed(t, inp = input){
+  return inp.tws * (inp.gustOn ? Math.max(0, gustFactor(t, inp)) : 1);
+}
+/* Air VELOCITY in world axes (direction the air travels). */
+function trueWindWorld(t, inp = input){
+  const th = rad(inp.wdirFrom), V = trueWindSpeed(t, inp);
+  return { x: -Math.sin(th) * V, z: Math.cos(th) * V };
+}
+
+/* ------------------------------------------------------------------ */
+/* 4. STATE                                                            */
+/* ------------------------------------------------------------------ */
+function freshState(headingDeg = input.heading){
+  return {
+    x: 0, z: 0, psi: rad(headingDeg),
+    u: 0, v: 0, w: 0,
+    heel: 0, heelRate: 0,
+    t: 0,
+    boundaryHit: false, heelLimitHit: false, nan: false,
+  };
+}
+let S = freshState();              // created after rad() exists
+const SIM = { acc: 0 };            // fixed-step accumulator
+
+/* Display snapshot is kept by the UI part (p4). */
+
+/* ------------------------------------------------------------------ */
+/* 5. FOIL COEFFICIENTS                                                */
+/*    Continuous, bounded, defined for 0 ≤ a ≤ 90° (degrees).          */
+/* ------------------------------------------------------------------ */
+function liftCurve(a, F){
+  if (a <= F.stallDeg) return Math.min(F.clMax, F.clMax * a / F.stallDeg);
+  if (a <= 27){
+    // progressive post-stall reduction: 1.45 → 0.55 over 14°
+    const t = (a - F.stallDeg) / (27 - F.stallDeg);
+    return lerp(F.clMax, F.clPost, t);
+  }
+  // broadside decay: 0.55 at 27° → 0 at 90°
+  const t = (a - 27) / 63;
+  return F.clPost * Math.pow(Math.cos(t * Math.PI / 2), 1.2);
+}
+function dragCurve(a, F){
+  const sep = smoothstep(8, 30, a);
+  const cd = F.cdMin + F.cdSlope * a + sep * (F.cdStall + F.cdPlate * Math.sin(rad(a)) ** 2);
+  return Math.min(cd, F.cdCap);
+}
+function aeroStateOf(aDeg, aws){
+  if (aws < 0.3) return { label: 'no flow', stall: 0 };
+  const a = Math.abs(aDeg);
+  if (a > 90) return { label: 'luffing', stall: 0.55 };   // backwinded
+  if (a < 2)  return { label: 'luffing', stall: 0.30 };   // edge-on / flogging
+  if (a < 11) return { label: 'attached', stall: 0 };
+  if (a < 14) return { label: 'approaching stall', stall: 0.35 };
+  return { label: 'stalled', stall: clamp((a - 14) / 26, 0.5, 1) };
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. FORCE MODEL — pure function of (state, inputs, time)             */
+/* ------------------------------------------------------------------ */
+function computeForces(st, inp = input, t = 0){
+  const m = inp.mass;
+  const tau = inp.trim;
+
+  /* --- Apparent wind at the sail's centre of effort ----------------- */
+  // Body-frame velocity of the CE: (u − ω·b, v + ω·a). The stern swings
+  // opposite the bow when yawing, so a<0 subtracts ω·a.
+  const aCE = CFG.sail.ceFwd, bCE = 0;
+  const windB = worldToBody(trueWindWorld(t, inp), st.psi);
+  const rel = { x: windB.x - (st.u - st.w * bCE), y: windB.y - (st.v + st.w * aCE) };
+  const aws = Math.hypot(rel.x, rel.y);
+  const d2 = aws > 1e-9 ? { x: rel.x / aws, y: rel.y / aws } : { x: 0, y: 0 };
+  const i2 = { x: -d2.x, y: -d2.y };                       // where the air comes FROM
+  const beta = aws > 1e-9 ? deg(Math.atan2(i2.y, i2.x)) : 0; // + = from starboard
+  const delta = aws > 1e-9 ? deg(wrapPi(rad(beta + tau))) : 0;
+
+  /* --- Sail force ---------------------------------------------------- */
+  const q = 0.5 * CFG.air.rho * aws * aws;
+  const qA = q * CFG.sail.area;
+  // Sail normal in body axes: the boom points (−cos τ, sin τ), so the
+  // normal on the leeward face is (−sin τ, −cos τ).
+  const nB = { x: -Math.sin(rad(tau)), y: -Math.cos(rad(tau)) };
+  let cl = 0, cd = 0, lift = 0, drag = 0, Fx_s = 0, Fy_s = 0;
+  let liftDir = { x: 0, y: 0 };
+  const st8 = aeroStateOf(delta, aws);
+
+  if (aws > 1e-9){
+    if (Math.abs(delta) <= 90){
+      const a = Math.abs(delta);
+      cl = liftCurve(a, CFG.sail);
+      cd = dragCurve(a, CFG.sail);
+      lift = qA * cl;
+      drag = qA * cd;
+      const sgn = Math.sign(delta) || 1;
+      liftDir = { x: sgn * perpCCW(d2).x, y: sgn * perpCCW(d2).y };
+      Fx_s = lift * liftDir.x + drag * d2.x;
+      Fy_s = lift * liftDir.y + drag * d2.y;
+    } else {
+      // Backwinded: thin cambered surface behaves as a bluff plate. Force
+      // along the normal, magnitude set by the normal component of flow.
+      const a = 180 - Math.abs(delta);
+      cd = CFG.sail.cdBluff + CFG.sail.cdBluffPlate * Math.sin(rad(a)) ** 2;
+      const dn = d2.x * nB.x + d2.y * nB.y;
+      Fx_s = qA * cd * dn * nB.x;
+      Fy_s = qA * cd * dn * nB.y;
+      lift = 0;
+      drag = qA * cd * Math.abs(dn);
+    }
+  }
+
+  /* --- Keel (symmetric foil at leeway) ------------------------------- */
+  const vk = { x: st.u, y: st.v + st.w * CFG.keel.xFwd };
+  const vkm = Math.hypot(vk.x, vk.y);
+  const qk = 0.5 * CFG.water.rho * vkm * vkm * CFG.keel.area;
+  let alphaK = 0, clk = 0, cdk = 0, Kx = 0, Ky = 0;
+  if (vkm > 1e-6){
+    const d2k = { x: -vk.x / vkm, y: -vk.y / vkm };        // water flow past the foil
+    // Foil chord runs along +x′ (leading edge forward); flow along −x′ is 0°.
+    alphaK = deg(wrapPi(Math.atan2(d2k.y, d2k.x) - Math.PI));
+    clk = liftCurve(Math.abs(alphaK), CFG.keel);
+    cdk = dragCurve(Math.abs(alphaK), CFG.keel);
+    const sgn = Math.sign(alphaK) || 1;
+    const lk = { x: sgn * perpCCW(d2k).x, y: sgn * perpCCW(d2k).y };
+    Kx = qk * (clk * lk.x + cdk * d2k.x);
+    Ky = qk * (clk * lk.y + cdk * d2k.y);
+  }
+
+  /* --- Rudder (symmetric foil, chord rotated by δr) ------------------- */
+  const vr = { x: st.u, y: st.v + st.w * CFG.rudder.xFwd };
+  const vrm = Math.hypot(vr.x, vr.y);
+  const qr = 0.5 * CFG.water.rho * vrm * vrm * CFG.rudder.area;
+  let alphaR = 0, clr = 0, cdr = 0, Rx = 0, Ry = 0;
+  if (vrm > 1e-6){
+    const d2r = { x: -vr.x / vrm, y: -vr.y / vrm };
+    const thetaC = Math.PI - rad(inp.rudder);              // LE→TE chord direction
+    alphaR = deg(wrapPi(Math.atan2(d2r.y, d2r.x) - thetaC));
+    clr = liftCurve(Math.abs(alphaR), CFG.rudder);
+    cdr = dragCurve(Math.abs(alphaR), CFG.rudder);
+    const sgn = Math.sign(alphaR) || 1;
+    const lr = { x: sgn * perpCCW(d2r).x, y: sgn * perpCCW(d2r).y };
+    Rx = qr * (clr * lr.x + cdr * d2r.x);
+    Ry = qr * (clr * lr.y + cdr * d2r.y);
+  }
+
+  /* --- Hull resistance (relative to the water) ----------------------- */
+  const heelDrag = 1 + CFG.hull.heelDragGain * Math.abs(Math.sin(rad(st.heel)));
+  const uu = Math.abs(st.u);
+  let surge = CFG.hull.surgeLin * st.u + CFG.hull.surgeQuad * st.u * uu;
+  if (uu > CFG.hull.hullSpeed){
+    // steep wave-making wall: displacement boats cannot quietly exceed hull speed
+    surge += Math.sign(st.u) * CFG.hull.waveK * uu * uu
+             * Math.exp((uu - CFG.hull.hullSpeed) / 0.55);
+  }
+  const Dx = -surge * heelDrag;
+  const Dy = -(CFG.hull.swayLin * st.v + CFG.hull.swayQuad * st.v * Math.abs(st.v));
+
+  /* --- Totals (body frame) ------------------------------------------- */
+  const Fx = Fx_s + Kx + Rx + Dx;
+  const Fy = Fy_s + Ky + Ry + Dy;
+
+  /* --- Moments ------------------------------------------------------- */
+  // Yaw about z′ (down): N = a·Fy − b·Fx. All application points are taken
+  // on the centreline (b = 0), so N = a·Fy for each foil.
+  const N = CFG.sail.ceFwd * Fy_s + CFG.keel.xFwd * Ky + CFG.rudder.xFwd * Ry
+          - CFG.hull.yawDamp * st.w;
+
+  // Roll about x′ (forward): a starboard force above the CG heels to
+  // starboard (+); below the CG it heels to port (−).
+  const Mheel = CFG.sail.ceHeight * Fy_s
+              - CFG.keel.belowCG * Ky
+              - CFG.rudder.belowCG * Ry;
+  const Mrestore = -m * CFG.water.g * CFG.boat.GM * Math.sin(rad(st.heel));
+  const Mroll = Mheel + Mrestore - CFG.hull.rollDamp * rad(st.heelRate);
+
+  return {
+    Fx, Fy,
+    sail: {
+      Fx: Fx_s, Fy: Fy_s, lift, drag, cl, cd, qA, q,
+      alpha: delta, beta, aws, tack: Math.sign(delta) || 0,
+      d2, liftDir, state: st8.label, stall: st8.stall, nB,
+    },
+    keel:   { Fx: Kx, Fy: Ky, alpha: alphaK, cl: clk, cd: cdk, speed: vkm },
+    rudder: { Fx: Rx, Fy: Ry, alpha: alphaR, cl: clr, cd: cdr, speed: vrm },
+    hull:   { Fx: Dx, Fy: Dy },
+    momentN: N, momentRoll: Mroll, heelMoment: Mheel, restoreMoment: Mrestore,
+    // world-frame vectors for the visualisation
+    velWorld: { x: st.u * Math.sin(st.psi) + st.v * Math.cos(st.psi),
+                z: st.u * -Math.cos(st.psi) + st.v * Math.sin(st.psi) },
+    airWorld: trueWindWorld(t, inp),
+    apparentWorld: bodyToWorld(rel, st.psi),
+    fDrive: Fx_s,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 7. INTEGRATION — semi-implicit Euler, fixed dt, accumulator         */
+/* ------------------------------------------------------------------ */
+function integrateFree(h, st, inp, t){
+  const F = computeForces(st, inp, t);
+  const m = inp.mass;
+  const Izz = m * CFG.boat.yawK ** 2;
+  const Ixx = m * CFG.boat.rollK ** 2;
+
+  // Body-frame acceleration with rotating-frame coupling:
+  //   u̇ = Fx/m + ω·v ; v̇ = Fy/m − ω·u
+  st.u += (F.Fx / m + st.w * st.v) * h;
+  st.v += (F.Fy / m - st.w * st.u) * h;
+  st.w += (F.momentN / Izz) * h;
+  st.heelRate += (F.momentRoll / Ixx) * h * (180 / Math.PI);   // heel state is in degrees
+
+  st.psi = wrapPi(st.psi + st.w * h);
+  st.heel += st.heelRate * h;
+  st.t += h;
+
+  const f = fwdVec(st.psi), s = stbVec(st.psi);
+  st.x += (st.u * f.x + st.v * s.x) * h;
+  st.z += (st.u * f.z + st.v * s.z) * h;
+
+  guardState(st);
+  return F;
+}
+
+/* Fixed rig: position, heading and yaw are held by the mount; roll is
+   free on the gimbal, so heel is integrated with the same roll equation. */
+function integrateFixed(h, st, inp, t){
+  const F = computeForces(st, inp, t);
+  const Ixx = inp.mass * CFG.boat.rollK ** 2;
+  st.heelRate += (F.momentRoll / Ixx) * h * (180 / Math.PI);   // heel state is in degrees
+  st.heel += st.heelRate * h;
+  st.t += h;
+  guardState(st);
+  return F;
+}
+
+/* Safety bounds, documented — not used to hide a broken force model. */
+function guardState(st){
+  if (!isFinite(st.u) || !isFinite(st.v) || !isFinite(st.w)
+      || !isFinite(st.psi) || !isFinite(st.heel) || !isFinite(st.heelRate)){
+    st.nan = true;
+    st.u = st.v = st.w = st.heelRate = 0;
+    st.psi = 0; st.heel = 0;
+  }
+  const spd = Math.hypot(st.u, st.v);
+  if (spd > CFG.boat.speedCap){
+    const k = CFG.boat.speedCap / spd;
+    st.u *= k; st.v *= k;
+  }
+  st.w = clamp(st.w, -3, 3);
+  st.heel = clamp(st.heel, -70, 70);
+}
+
+/* One rendered frame worth of simulation. dtFrame is wall-clock × simSpeed. */
+function advance(dtFrame, st, inp, accRef = SIM){
+  const h = CFG.physics.dt;
+  accRef.acc = Math.min(accRef.acc + dtFrame, CFG.physics.maxCatchup);
+  let n = 0;
+  let F = computeForces(st, inp, st.t);
+  while (accRef.acc >= h && n < CFG.physics.maxSubsteps){
+    F = (inp.mode === 'free') ? integrateFree(h, st, inp, st.t)
+                              : integrateFixed(h, st, inp, st.t);
+    accRef.acc -= h;
+    n++;
+    if (inp.mode === 'free'){
+      if (Math.abs(st.x) > CFG.world.basinX || Math.abs(st.z) > CFG.world.basinZ){
+        st.boundaryHit = true; accRef.acc = 0; break;
+      }
+      if (Math.abs(st.heel) > CFG.boat.heelLimitDeg){
+        st.heelLimitHit = true; accRef.acc = 0; break;
+      }
+    } else if (Math.abs(st.heel) > CFG.boat.heelLimitDeg){
+      st.heelLimitHit = true; accRef.acc = 0; break;
+    }
+  }
+  if (n >= CFG.physics.maxSubsteps) accRef.acc = 0;   // cap catch-up work
+  return F;
+}
+
+/* =====================================================================
+   PART 3 — scene: renderer, water, basin, tunnel, procedural boat,
+            force arrows, illustrative airflow, track and wake.
+   ===================================================================== */
+
+const fail = window.__labFail || ((t, m) => console.error(t, m));
+
+/* ------------------------------------------------------------------ */
+/* 3.1 Renderer / camera / controls                                    */
+/* ------------------------------------------------------------------ */
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  fail('WebGL unavailable', 'The browser refused to create a WebGL context: <code>' + e.message + '</code>');
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.domElement.className = 'webgl';
+document.getElementById('stage').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050a14);
+scene.fog = new THREE.FogExp2(0x050a14, 0.0065);
+
+/* A tiny procedural environment map gives the PBR materials (metal mast,
+   varnished hull, sail cloth) believable reflections without any asset. */
+{
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0.00, '#0a1828');
+  grad.addColorStop(0.42, '#153a52');
+  grad.addColorStop(0.50, '#2b5568');
+  grad.addColorStop(0.56, '#16283a');
+  grad.addColorStop(1.00, '#03070d');
+  g.fillStyle = grad; g.fillRect(0, 0, 512, 256);
+  const rg = g.createRadialGradient(140, 118, 0, 140, 118, 100);
+  rg.addColorStop(0, 'rgba(255,181,69,0.30)');
+  rg.addColorStop(1, 'rgba(255,181,69,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, 512, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  scene.environment = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose();
+  pmrem.dispose();
+}
+
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 900);
+camera.position.set(-12.5, 6.4, -13.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.minDistance = 3.2;
+controls.maxDistance = 160;
+controls.maxPolarAngle = Math.PI * 0.98;
+controls.update();
+
+/* ------------------------------------------------------------------ */
+/* 3.2 Lighting                                                        */
+/* ------------------------------------------------------------------ */
+scene.add(new THREE.HemisphereLight(0x93bcd8, 0x08141f, 0.85));
+scene.add(new THREE.AmbientLight(0x24384c, 0.50));
+
+const keyLight = new THREE.DirectionalLight(0xe6f1ff, 2.2);
+keyLight.position.set(26, 28, 12);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -16; keyLight.shadow.camera.right = 16;
+keyLight.shadow.camera.top = 16; keyLight.shadow.camera.bottom = -16;
+keyLight.shadow.camera.near = 1; keyLight.shadow.camera.far = 120;
+keyLight.shadow.bias = -0.0005;
+keyLight.shadow.normalBias = 0.02;
+scene.add(keyLight);
+scene.add(keyLight.target);
+
+const fillLight = new THREE.DirectionalLight(0x4fb6d8, 0.55);
+fillLight.position.set(-18, 10, -14);
+scene.add(fillLight);
+
+const amberLight = new THREE.PointLight(0xffb545, 24, 34, 2);
+amberLight.position.set(-4, 3.2, 9);
+scene.add(amberLight);
+
+/* ------------------------------------------------------------------ */
+/* 3.3 Water — restrained ripples, translucent so the keel reads       */
+/* ------------------------------------------------------------------ */
+const waterUniforms = {
+  uTime:      { value: 0 },
+  uOpacity:   { value: 0.80 },
+  uUnder:     { value: 0 },
+  uDeep:      { value: new THREE.Color(0x08202f) },
+  uShallow:   { value: new THREE.Color(0x11506b) },
+  uSky:       { value: new THREE.Color(0x2d7392) },
+  uSun:       { value: new THREE.Vector3(-0.45, 0.8, -0.35).normalize() },
+};
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: waterUniforms,
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  vertexShader: `
+    uniform float uTime;
+    varying vec3 vW; varying vec3 vN;
+    void main(){
+      vec3 p = position;
+      float t = uTime;
+      float h = 0.0; vec2 g = vec2(0.0);
+      vec2 d1 = normalize(vec2(1.0, 0.35)); float k1 = 0.55;
+      h += 0.045*sin(dot(p.xz,d1)*k1 + t*1.4);
+      g += 0.045*k1*cos(dot(p.xz,d1)*k1 + t*1.4)*d1;
+      vec2 d2 = normalize(vec2(-0.4, 1.0)); float k2 = 0.95;
+      h += 0.026*sin(dot(p.xz,d2)*k2 + t*2.0);
+      g += 0.026*k2*cos(dot(p.xz,d2)*k2 + t*2.0)*d2;
+      vec2 d3 = normalize(vec2(0.8, -0.6)); float k3 = 1.8;
+      h += 0.012*sin(dot(p.xz,d3)*k3 + t*2.9);
+      g += 0.012*k3*cos(dot(p.xz,d3)*k3 + t*2.9)*d3;
+      p.y += h;
+      vN = normalize(vec3(-g.x, 1.0, -g.y));
+      vec4 wp = modelMatrix * vec4(p, 1.0);
+      vW = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform vec3 uDeep, uShallow, uSky, uSun;
+    uniform float uOpacity, uUnder;
+    varying vec3 vW; varying vec3 vN;
+    void main(){
+      vec3 V = normalize(cameraPosition - vW);
+      vec3 N = normalize(vN);
+      if (uUnder > 0.5) N = -N;
+      float fres = pow(1.0 - max(dot(N, V), 0.0), 3.5);
+      vec3 col = mix(uDeep, uShallow, 0.35 + 0.3*max(N.y, 0.0));
+      col = mix(col, uSky, fres*0.72);
+      vec3 H = normalize(uSun + V);
+      float nh = max(dot(N, H), 0.0);
+      col += vec3(1.0, 0.96, 0.86) * (pow(nh, 120.0) * 0.9 + pow(nh, 16.0) * 0.10);
+      vec2 gw = vW.xz / 5.0;
+      vec2 f = abs(fract(gw) - 0.5);
+      float line = smoothstep(0.482, 0.5, max(f.x, f.y));
+      col += vec3(0.16, 0.52, 0.66) * line * 0.12;
+      gl_FragColor = vec4(col, uOpacity);
+    }`,
+});
+const waterGeo = new THREE.PlaneGeometry(420, 420, 96, 96);
+waterGeo.rotateX(-Math.PI / 2);
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.renderOrder = 2;
+scene.add(water);
+
+/* Shadow catcher just above the water, moved with the boat */
+const shadowPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(44, 22),
+  new THREE.ShadowMaterial({ opacity: 0.34 })
+);
+shadowPlane.rotateX(-Math.PI / 2);
+shadowPlane.position.y = 0.02;
+shadowPlane.receiveShadow = true;
+scene.add(shadowPlane);
+
+/* ------------------------------------------------------------------ */
+/* 3.4 Basin rim, measurement ticks and labels                         */
+/* ------------------------------------------------------------------ */
+const BX = CFG.world.basinX, BZ = CFG.world.basinZ;
+const lineMat = (color, opacity) => new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+
+const basinGroup = new THREE.Group();
+scene.add(basinGroup);
+{
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0x14222f, roughness: 0.6, metalness: 0.4 });
+  const rimH = 0.16, rimW = 0.28;
+  const mk = (w, d, x, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, rimH, d), rimMat);
+    m.position.set(x, rimH / 2, z); basinGroup.add(m); return m;
+  };
+  mk(BX * 2 + rimW, rimW, 0, -BZ);
+  mk(BX * 2 + rimW, rimW, 0,  BZ);
+  mk(rimW, BZ * 2, -BX, 0);
+  mk(rimW, BZ * 2,  BX, 0);
+
+  // glowing top edge
+  const edgePts = [
+    -BX, rimH + 0.005, -BZ,  BX, rimH + 0.005, -BZ,
+     BX, rimH + 0.005, -BZ,  BX, rimH + 0.005,  BZ,
+     BX, rimH + 0.005,  BZ, -BX, rimH + 0.005,  BZ,
+    -BX, rimH + 0.005,  BZ, -BX, rimH + 0.005, -BZ,
+  ];
+  basinGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edgePts, 3)),
+    lineMat(0x38d6e8, 0.30)
+  ));
+
+  // ticks every 5 m, long every 25 m
+  const ticks = [];
+  for (let x = -BX; x <= BX; x += 5) {
+    const long = x % 25 === 0, l = long ? 1.1 : 0.5;
+    ticks.push(x, rimH + 0.01, -BZ, x, rimH + 0.01, -BZ + l);
+    ticks.push(x, rimH + 0.01,  BZ, x, rimH + 0.01,  BZ - l);
+  }
+  for (let z = -BZ; z <= BZ; z += 5) {
+    const long = z % 25 === 0, l = long ? 1.1 : 0.5;
+    ticks.push(-BX, rimH + 0.01, z, -BX + l, rimH + 0.01, z);
+    ticks.push( BX, rimH + 0.01, z,  BX - l, rimH + 0.01, z);
+  }
+  basinGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ticks, 3)),
+    lineMat(0x38d6e8, 0.24)
+  ));
+
+  // numeric labels every 25 m along the north and west rims
+  function labelSprite(text, x, y, z) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = 'rgba(0,0,0,0)'; g.fillRect(0, 0, 128, 64);
+    g.font = '600 34px ui-monospace, monospace';
+    g.fillStyle = 'rgba(120,200,225,0.85)';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 64, 34);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    sp.position.set(x, y, z); sp.scale.set(3.2, 1.6, 1);
+    basinGroup.add(sp);
+  }
+  for (let x = -50; x <= 50; x += 25) labelSprite(x + ' m', x, rimH + 0.9, -BZ - 0.9);
+  for (let z = -25; z <= 25; z += 25) labelSprite(z + ' m', -BX - 1.2, rimH + 0.9, z);
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.5 Wind-tunnel volume — aligned with the wind, follows the boat     */
+/* ------------------------------------------------------------------ */
+const tunnelGroup = new THREE.Group();
+scene.add(tunnelGroup);
+const TUNNEL = { L: 34, H: 14, W: 20 };
+{
+  const box = new THREE.BoxGeometry(TUNNEL.L, TUNNEL.H, TUNNEL.W);
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(box),
+    lineMat(0x38d6e8, 0.28)
+  );
+  edges.position.y = TUNNEL.H / 2 + 0.1;
+  tunnelGroup.add(edges);
+
+  // translucent inflow face
+  const face = new THREE.Mesh(
+    new THREE.PlaneGeometry(TUNNEL.W, TUNNEL.H),
+    new THREE.MeshBasicMaterial({
+      color: 0x38d6e8, transparent: true, opacity: 0.035,
+      side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  face.rotation.y = Math.PI / 2;
+  face.position.set(-TUNNEL.L / 2, TUNNEL.H / 2 + 0.1, 0);
+  tunnelGroup.add(face);
+
+  // vertical ribs on the inflow face for scale
+  const ribPts = [];
+  for (let z = -TUNNEL.W / 2 + 1; z < TUNNEL.W / 2; z += 2) {
+    ribPts.push(-TUNNEL.L / 2, 0.1, z, -TUNNEL.L / 2, TUNNEL.H + 0.1, z);
+  }
+  tunnelGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ribPts, 3)),
+    lineMat(0x38d6e8, 0.12)
+  ));
+
+  // floor frame + 2 m measurement ticks on the water
+  const floorPts = [
+    -TUNNEL.L / 2, 0.06, -TUNNEL.W / 2,  TUNNEL.L / 2, 0.06, -TUNNEL.W / 2,
+     TUNNEL.L / 2, 0.06, -TUNNEL.W / 2,  TUNNEL.L / 2, 0.06,  TUNNEL.W / 2,
+     TUNNEL.L / 2, 0.06,  TUNNEL.W / 2, -TUNNEL.L / 2, 0.06,  TUNNEL.W / 2,
+    -TUNNEL.L / 2, 0.06,  TUNNEL.W / 2, -TUNNEL.L / 2, 0.06, -TUNNEL.W / 2,
+  ];
+  for (let x = -TUNNEL.L / 2 + 2; x < TUNNEL.L / 2; x += 2) {
+    const long = Math.round(x) % 10 === 0, l = long ? 0.7 : 0.35;
+    floorPts.push(x, 0.06, -TUNNEL.W / 2, x, 0.06, -TUNNEL.W / 2 + l);
+    floorPts.push(x, 0.06,  TUNNEL.W / 2, x, 0.06,  TUNNEL.W / 2 - l);
+  }
+  for (let z = -TUNNEL.W / 2 + 2; z < TUNNEL.W / 2; z += 2) {
+    floorPts.push(-TUNNEL.L / 2, 0.06, z, -TUNNEL.L / 2 + 0.5, 0.06, z);
+    floorPts.push( TUNNEL.L / 2, 0.06, z,  TUNNEL.L / 2 - 0.5, 0.06, z);
+  }
+  tunnelGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(floorPts, 3)),
+    lineMat(0x38d6e8, 0.22)
+  ));
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.6 The boat — every surface procedural                             */
+/* ------------------------------------------------------------------ */
+const boatGroup = new THREE.Group();     // yaw + position
+const heelGroup = new THREE.Group();     // roll about the waterline
+boatGroup.add(heelGroup);
+scene.add(boatGroup);
+
+const MAT = {
+  hull:  new THREE.MeshStandardMaterial({ color: 0x2c5a78, roughness: 0.32, metalness: 0.35, envMapIntensity: 1.1 }),
+  boot:  new THREE.MeshStandardMaterial({ color: 0xffb545, roughness: 0.5, metalness: 0.2 }),
+  deck:  new THREE.MeshStandardMaterial({ color: 0xded8c8, roughness: 0.72, metalness: 0.05 }),
+  cabin: new THREE.MeshStandardMaterial({ color: 0xe6dfd0, roughness: 0.62, metalness: 0.05 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x0a1620, roughness: 0.12, metalness: 0.8 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0xc3ccd6, roughness: 0.28, metalness: 0.75, envMapIntensity: 1.4 }),
+  iron:  new THREE.MeshStandardMaterial({ color: 0x5c6a7a, roughness: 0.40, metalness: 0.65, envMapIntensity: 1.2 }),
+  dark:  new THREE.MeshStandardMaterial({ color: 0x0d1620, roughness: 0.8 }),
+  sail:  null,
+};
+
+/* --- Hull: lofted stations, U sections ------------------------------ */
+function loftHull() {
+  const stations = [
+    [-3.55, 0.96, -0.42, 0.74],
+    [-2.70, 1.12, -0.60, 0.80],
+    [-1.60, 1.20, -0.68, 0.85],
+    [-0.30, 1.19, -0.70, 0.87],
+    [ 1.00, 1.10, -0.66, 0.87],
+    [ 2.10, 0.92, -0.54, 0.84],
+    [ 2.95, 0.66, -0.36, 0.80],
+    [ 3.55, 0.28, -0.16, 0.74],
+    [ 3.78, 0.03, -0.04, 0.66],
+  ];
+  const NPT = 19, pos = [], idx = [];
+  for (const [x, hw, ky, dy] of stations) {
+    for (let j = 0; j < NPT; j++) {
+      const th = Math.PI * j / (NPT - 1);
+      const z = hw * Math.cos(th);
+      const y = dy - (dy - ky) * Math.pow(Math.sin(th), 1.15);
+      pos.push(x, y, z);
+    }
+  }
+  for (let i = 0; i < stations.length - 1; i++) {
+    for (let j = 0; j < NPT - 1; j++) {
+      const a = i * NPT + j, b = a + 1, c = a + NPT, d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  // transom cap
+  const c0 = pos.length / 3;
+  pos.push(-3.55, 0.16, 0);
+  for (let j = 0; j < NPT - 1; j++) idx.push(c0, j, j + 1);
+  // bow cap
+  const c1 = pos.length / 3;
+  pos.push(3.78, 0.30, 0);
+  const off = (stations.length - 1) * NPT;
+  for (let j = 0; j < NPT - 1; j++) idx.push(c1, off + j + 1, off + j);
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+const hullMesh = new THREE.Mesh(loftHull(), MAT.hull);
+hullMesh.castShadow = true;
+heelGroup.add(hullMesh);
+
+/* boot stripe following the sheer */
+{
+  const pts = [];
+  const stations = [[-3.55, 0.96], [-2.7, 1.12], [-1.6, 1.2], [-0.3, 1.19],
+                    [1.0, 1.1], [2.1, 0.92], [2.95, 0.66], [3.55, 0.28]];
+  for (const [x, hw] of stations) pts.push(x, 0.03, hw * 0.99, x, 0.03, -hw * 0.99);
+  for (let i = 0; i < stations.length - 1; i++) {
+    const a = i * 2;
+    pts.push(stations[i][0], 0.03, stations[i][1] * 0.99,
+             stations[i + 1][0], 0.03, stations[i + 1][1] * 0.99);
+    pts.push(stations[i][0], 0.03, -stations[i][1] * 0.99,
+             stations[i + 1][0], 0.03, -stations[i + 1][1] * 0.99);
+  }
+  heelGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)),
+    lineMat(0xffb545, 0.55)
+  ));
+}
+
+/* --- Deck with camber ---------------------------------------------- */
+function loftDeck() {
+  const st = [
+    [-3.55, 0.96, 0.74], [-2.70, 1.12, 0.80], [-1.60, 1.20, 0.85],
+    [-0.30, 1.19, 0.87], [ 1.00, 1.10, 0.87], [ 2.10, 0.92, 0.84],
+    [ 2.95, 0.66, 0.80], [ 3.55, 0.28, 0.74], [ 3.78, 0.03, 0.66],
+  ];
+  const NL = 7, pos = [], idx = [];
+  for (const [x, hw, dy] of st) {
+    for (let k = 0; k < NL; k++) {
+      const t = k / (NL - 1) * 2 - 1;         // −1 port … +1 starboard
+      pos.push(x, dy + 0.10 * (1 - t * t), t * hw);
+    }
+  }
+  for (let i = 0; i < st.length - 1; i++) {
+    for (let k = 0; k < NL - 1; k++) {
+      const a = i * NL + k, b = a + 1, c = a + NL, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+const deckMesh = new THREE.Mesh(loftDeck(), MAT.deck);
+deckMesh.castShadow = true;
+deckMesh.receiveShadow = true;
+heelGroup.add(deckMesh);
+
+/* --- Coachroof with window band ------------------------------------ */
+function loftCabin() {
+  const st = [
+    [-1.62, 0.52, 0.85, 1.02],
+    [-1.10, 0.66, 0.86, 1.14],
+    [ 0.15, 0.68, 0.87, 1.18],
+    [ 0.92, 0.54, 0.87, 1.06],
+    [ 1.30, 0.30, 0.87, 0.94],
+  ];
+  const SEC = [[-1, 0], [-0.84, 1], [0, 1.12], [0.84, 1], [1, 0]]; // (z factor, y offset factor)
+  const pos = [], idx = [];
+  for (const [x, w, y0, y1] of st) {
+    for (const [zf, yf] of SEC) {
+      pos.push(x, yf === 0 ? y0 : y0 + (y1 - y0) * yf, zf * w);
+    }
+  }
+  for (let i = 0; i < st.length - 1; i++) {
+    for (let k = 0; k < SEC.length - 1; k++) {
+      const a = i * SEC.length + k, b = a + 1, c = a + SEC.length, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+const cabinMesh = new THREE.Mesh(loftCabin(), MAT.cabin);
+cabinMesh.castShadow = true;
+heelGroup.add(cabinMesh);
+{
+  const band = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.075, 1.42), MAT.glass);
+  band.position.set(-0.35, 1.10, 0);
+  heelGroup.add(band);
+}
+
+/* --- Cockpit recess, coamings, wheel -------------------------------- */
+{
+  const sole = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.05, 1.05), MAT.dark);
+  sole.position.set(-2.35, 0.78, 0);
+  heelGroup.add(sole);
+  for (const s of [-1, 1]) {
+    const coam = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.20, 0.10), MAT.deck);
+    coam.position.set(-2.35, 0.90, s * 0.60);
+    heelGroup.add(coam);
+  }
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.55, 10), MAT.metal);
+  ped.position.set(-2.55, 1.02, 0);
+  heelGroup.add(ped);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.026, 8, 28), MAT.metal);
+  wheel.rotation.y = Math.PI / 2;
+  wheel.position.set(-2.45, 1.32, 0);
+  heelGroup.add(wheel);
+  for (let k = 0; k < 3; k++) {
+    const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.66, 6), MAT.metal);
+    spoke.rotation.z = k * Math.PI / 3;
+    spoke.position.set(-2.45, 1.32, 0);
+    heelGroup.add(spoke);
+  }
+}
+
+/* --- Mast, boom, rigging ------------------------------------------- */
+const MAST_X = 0.72, DECK_Y = 0.87, MAST_TOP = 9.4;
+const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, MAST_TOP - DECK_Y, 12), MAT.metal);
+mast.position.set(MAST_X, (MAST_TOP + DECK_Y) / 2, 0);
+mast.castShadow = true;
+heelGroup.add(mast);
+{
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0x38d6e8, emissive: 0x38d6e8, emissiveIntensity: 1.2 }));
+  head.position.set(MAST_X, MAST_TOP + 0.05, 0);
+  heelGroup.add(head);
+  // spreaders
+  for (const s of [-1, 1]) {
+    const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.05, 6), MAT.metal);
+    sp.rotation.z = Math.PI / 2;
+    sp.position.set(MAST_X, 5.35, s * 0.5);
+    heelGroup.add(sp);
+  }
+  // rigging: forestay, backstay, shrouds
+  const rig = [
+    MAST_X, MAST_TOP - 0.2, 0,   3.70, 0.86, 0,
+    MAST_X, MAST_TOP - 0.2, 0,  -3.45, 0.80, 0,
+    MAST_X, MAST_TOP - 0.3, 0,   0.30, 0.86,  1.16,
+    MAST_X, MAST_TOP - 0.3, 0,   0.30, 0.86, -1.16,
+    MAST_X, 5.35, 0,             0.30, 0.86,  1.16,
+    MAST_X, 5.35, 0,             0.30, 0.86, -1.16,
+  ];
+  heelGroup.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(rig, 3)),
+    lineMat(0x8fa8bc, 0.5)
+  ));
+}
+
+const boomGroup = new THREE.Group();
+boomGroup.position.set(MAST_X, 1.42, 0);
+heelGroup.add(boomGroup);
+const BOOM_LEN = 4.25;
+{
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, BOOM_LEN, 10), MAT.metal);
+  boom.geometry.rotateZ(Math.PI / 2);
+  boom.geometry.translate(-BOOM_LEN / 2, 0, 0);
+  boom.castShadow = true;
+  boomGroup.add(boom);
+}
+
+/* --- Mainsail: curved, panel seams, amber leech --------------------- */
+const SAIL_NU = 17, SAIL_NV = 15, SAIL_VERTS = SAIL_NU * SAIL_NV;
+const SAIL = { luff: 7.45, footChord: 4.2, roach: 0.45 };
+const sailGeo = new THREE.BufferGeometry();
+{
+  const idx = [];
+  for (let i = 0; i < SAIL_NU - 1; i++) {
+    for (let j = 0; j < SAIL_NV - 1; j++) {
+      const a = i * SAIL_NV + j, b = a + 1, c = a + SAIL_NV, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  sailGeo.setIndex(idx);
+  sailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SAIL_VERTS * 3), 3));
+  sailGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(SAIL_VERTS * 2), 2));
+}
+function seamTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f4f0e4'; g.fillRect(0, 0, 256, 256);
+  const grad = g.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, 'rgba(0,0,0,0.06)');
+  grad.addColorStop(0.45, 'rgba(255,255,255,0.10)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.12)');
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = 'rgba(70,80,95,0.18)'; g.lineWidth = 1;
+  for (let y = 16; y < 256; y += 32) {
+    g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke();
+  }
+  // broad seam shading
+  g.strokeStyle = 'rgba(120,130,140,0.05)'; g.lineWidth = 5;
+  for (let y = 16; y < 256; y += 32) {
+    g.beginPath(); g.moveTo(0, y + 3); g.lineTo(256, y + 3); g.stroke();
+  }
+  // soft falloff toward the leech gives the cloth a little volume
+  const leech = g.createLinearGradient(0, 0, 256, 0);
+  leech.addColorStop(0, 'rgba(255,255,255,0.04)');
+  leech.addColorStop(0.7, 'rgba(0,0,0,0)');
+  leech.addColorStop(1, 'rgba(0,0,0,0.12)');
+  g.fillStyle = leech; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+MAT.sail = new THREE.MeshStandardMaterial({
+  map: seamTexture(), color: 0xffffff, roughness: 0.88, metalness: 0.0,
+  side: THREE.DoubleSide, emissive: 0x141a20, emissiveIntensity: 0.5,
+  envMapIntensity: 0.6,
+});
+const sailMesh = new THREE.Mesh(sailGeo, MAT.sail);
+sailMesh.castShadow = true;
+heelGroup.add(sailMesh);
+
+const leechLine = new THREE.Line(
+  new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(SAIL_NV * 3), 3)),
+  lineMat(0xffb545, 0.95)
+);
+heelGroup.add(leechLine);
+
+/* Boom-angle arc on the deck: makes trim readable at a glance */
+const trimArc = new THREE.Line(
+  new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 33), 3)),
+  lineMat(0xffb545, 0.6)
+);
+heelGroup.add(trimArc);
+const centreLine = new THREE.Line(
+  new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(
+    [MAST_X, 1.0, 0, MAST_X - 2.4, 1.0, 0], 3)),
+  lineMat(0xffb545, 0.28)
+);
+heelGroup.add(centreLine);
+
+/* Sail shape: chord tapers to the head, camber on the leeward face (+z) */
+function updateSail(trimDeg, tack, flutter) {
+  boomGroup.rotation.y = rad(trimDeg);
+  const P = sailGeo.attributes.position.array;
+  const UV = sailGeo.attributes.uv.array;
+  const L = leechLine.geometry.attributes.position.array;
+  let k = 0, kl = 0;
+  for (let i = 0; i < SAIL_NU; i++) {
+    const u = i / (SAIL_NU - 1);
+    for (let j = 0; j < SAIL_NV; j++) {
+      const v = j / (SAIL_NV - 1);
+      const chord = SAIL.footChord * Math.pow(1 - v, 0.9) + SAIL.roach * Math.sin(Math.PI * v);
+      let camber = 0.19 * chord * Math.sin(Math.PI * u) * (1 - 0.28 * v);
+      if (flutter) camber *= 1 + 0.55 * Math.sin(flutter * 11 + u * 5 + v * 2);
+      P[k++] = -u * chord;
+      P[k++] = v * SAIL.luff;
+      P[k++] = camber;
+      UV[(i * SAIL_NV + j) * 2] = u;
+      UV[(i * SAIL_NV + j) * 2 + 1] = v * 2.2;
+      if (i === SAIL_NU - 1) { L[kl++] = -u * chord; L[kl++] = v * SAIL.luff; L[kl++] = camber; }
+    }
+  }
+  sailGeo.attributes.position.needsUpdate = true;
+  sailGeo.attributes.uv.needsUpdate = true;
+  sailGeo.computeVertexNormals();
+  leechLine.geometry.attributes.position.needsUpdate = true;
+
+  // trim arc at the mast base
+  const A = trimArc.geometry.attributes.position.array;
+  const R = 1.15, N = 33;
+  for (let i = 0; i < N; i++) {
+    const ang = Math.PI + rad(trimDeg) * (i / (N - 1));
+    A[i * 3] = MAST_X + Math.cos(ang) * R;
+    A[i * 3 + 1] = 1.0;
+    A[i * 3 + 2] = Math.sin(ang) * R;
+  }
+  trimArc.geometry.attributes.position.needsUpdate = true;
+}
+
+/* --- Fin keel + bulb ------------------------------------------------ */
+{
+  const sh = new THREE.Shape();
+  sh.moveTo(-1.62, -0.52);
+  sh.lineTo(-0.30, -0.52);
+  sh.lineTo(-0.58, -1.48);
+  sh.lineTo(-1.32, -1.48);
+  sh.closePath();
+  const fin = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(sh, { depth: 0.13, bevelEnabled: false }),
+    MAT.iron
+  );
+  fin.position.z = -0.065;
+  fin.castShadow = true;
+  heelGroup.add(fin);
+
+  const bulb = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 1.15, 4, 12), MAT.iron);
+  bulb.rotation.z = Math.PI / 2;
+  bulb.position.set(-0.95, -1.52, 0);
+  bulb.castShadow = true;
+  heelGroup.add(bulb);
+}
+
+/* --- Rudder --------------------------------------------------------- */
+const rudderGroup = new THREE.Group();
+rudderGroup.position.set(-3.30, -0.28, 0);
+heelGroup.add(rudderGroup);
+{
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.78, 0.055), MAT.iron);
+  blade.position.set(-0.37, -0.16, 0);
+  blade.castShadow = true;
+  rudderGroup.add(blade);
+}
+
+/* --- Application-point anchors (children of the heeling boat) ------- */
+function anchor(x, y, z) {
+  const o = new THREE.Object3D();
+  o.position.set(x, y, z);
+  heelGroup.add(o);
+  return o;
+}
+const ceAnchor   = anchor(CFG.sail.ceFwd, CFG.sail.ceHeight, 0);
+const keelAnchor = anchor(-0.95, -1.05, 0);
+const rudAnchor  = anchor(-3.30, -0.55, 0);
+const mastAnchor = anchor(MAST_X, MAST_TOP + 0.2, 0);
+
+/* ------------------------------------------------------------------ */
+/* 3.7 Force and wind arrows                                          */
+/* ------------------------------------------------------------------ */
+function makeArrow(color, order) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({
+    color, toneMapped: false, transparent: true, opacity: 0.95,
+    depthWrite: false, depthTest: false,   // annotation vectors: always legible
+  });
+  const shaftGeo = new THREE.CylinderGeometry(0.055, 0.055, 1, 6);
+  shaftGeo.translate(0, 0.5, 0);
+  const shaft = new THREE.Mesh(shaftGeo, mat);
+  const headGeo = new THREE.ConeGeometry(0.145, 0.34, 8);
+  headGeo.translate(0, 0.17, 0);
+  const head = new THREE.Mesh(headGeo, mat);
+  shaft.renderOrder = order; head.renderOrder = order;
+  g.add(shaft, head);
+  g.userData = { shaft, head };
+  g.visible = false;
+  scene.add(g);
+  return g;
+}
+const arrows = {
+  twind: makeArrow(0x7fb0ff, 6),
+  awind: makeArrow(0x38d6e8, 6),
+  aero:  makeArrow(0xff8a3d, 1),   // resultant drawn first …
+  drag:  makeArrow(0xffb545, 2),
+  lift:  makeArrow(0x5ee0a0, 3),   // … components on top
+  keel:  makeArrow(0xb48cff, 3),
+};
+const ARROW_SCALE = 450, WIND_SCALE = 4;
+const ARROW_MIN = 0.10, ARROW_MAX = 4.0;
+
+const _up = new THREE.Vector3(0, 1, 0);
+function setArrow(g, origin, dir, len) {
+  if (!(len > 0.02) || !isFinite(len)) { g.visible = false; return; }
+  g.visible = true;
+  const d = new THREE.Vector3(dir.x, dir.y || 0, dir.z);
+  if (d.lengthSq() < 1e-12) { g.visible = false; return; }
+  d.normalize();
+  g.position.set(origin.x, origin.y, origin.z);
+  g.quaternion.setFromUnitVectors(_up, d);
+  const headLen = Math.min(0.34, len * 0.4);
+  g.userData.shaft.scale.set(1, Math.max(len - headLen, 0.001), 1);
+  g.userData.head.scale.set(1, headLen / 0.34, 1);
+  g.userData.head.position.set(0, len - headLen, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.8 Illustrative airflow — streak particles, NOT a CFD solution     */
+/* ------------------------------------------------------------------ */
+const FLOW_MAX = 2600;
+const flowGeo = new THREE.BufferGeometry();
+flowGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(FLOW_MAX * 6), 3));
+flowGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(FLOW_MAX * 6), 3));
+const flowMat = new THREE.LineBasicMaterial({
+  vertexColors: true, transparent: true, opacity: 0.50,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const flowLines = new THREE.LineSegments(flowGeo, flowMat);
+flowLines.frustumCulled = false;
+scene.add(flowLines);
+
+const FLOW_HALF = { along: 17, cross: 9, up: 4.2 };
+const flow = {
+  head: new Float32Array(FLOW_MAX * 3),
+  age: new Float32Array(FLOW_MAX),
+  seed: new Float32Array(FLOW_MAX),
+};
+for (let i = 0; i < FLOW_MAX; i++) flow.seed[i] = Math.random() * 6.283;
+
+/* world-space particle spawn on the upwind face of a boat-centred box */
+function flowRespawn(i, boat, windWorld) {
+  const wm = Math.hypot(windWorld.x, windWorld.z);
+  const wx = wm > 1e-5 ? windWorld.x / wm : 1;
+  const wz = wm > 1e-5 ? windWorld.z / wm : 0;
+  // cross-wind axis (perpendicular, horizontal)
+  const cx = -wz, cz = wx;
+  const a = (Math.random() * 2 - 1) * FLOW_HALF.along;
+  const c = (Math.random() * 2 - 1) * FLOW_HALF.cross;
+  flow.head[i * 3]     = boat.x + wx * (a - FLOW_HALF.along) + cx * c;
+  flow.head[i * 3 + 1] = 0.5 + Math.random() * (FLOW_HALF.up * 2 - 0.6);
+  flow.head[i * 3 + 2] = boat.z + wz * (a - FLOW_HALF.along) + cz * c;
+  flow.age[i] = 0;
+}
+function flowReset(boat) {
+  const wind = trueWindWorld(0);
+  for (let i = 0; i < FLOW_MAX; i++) {
+    flowRespawn(i, boat, wind);
+    // pre-scatter downwind so the field starts populated
+    const wm = Math.hypot(wind.x, wind.z) || 1;
+    const k = Math.random() * FLOW_HALF.along * 1.6;
+    flow.head[i * 3]     += wind.x / wm * k;
+    flow.head[i * 3 + 2] += wind.z / wm * k;
+    flow.age[i] = Math.random() * 4;
+  }
+}
+
+/* Analytic illustrative velocity: free stream + sail deflection + wake. */
+const _fout = { x: 0, y: 0, z: 0 };
+function flowField(px, py, pz, ctx, seed, out) {
+  const wind = ctx.wind;
+  let vx = wind.x, vy = 0, vz = wind.z;
+  const wm = Math.hypot(wind.x, wind.z);
+  if (wm < 1e-4) { out.x = out.y = out.z = 0; return; }
+
+  const dx = px - ctx.ce.x, dz = pz - ctx.ce.z;
+  const rb = worldToBody({ x: dx, z: dz }, ctx.psi);
+  const ry = py - ctx.ce.y;
+
+  /* deflection around the sail plane (the plane contains the boom) */
+  const tauR = rad(ctx.trim);
+  const nB = { x: -Math.sin(tauR), y: -Math.cos(tauR) };   // body-frame sail normal
+  const bB = { x: -Math.cos(tauR), y: Math.sin(tauR) };    // body-frame boom direction
+  const dPlane = rb.x * nB.x + rb.y * nB.y;                 // signed distance from the sail plane
+  const along = rb.x * bB.x + rb.y * bB.y;                  // along the sail chord
+  if (Math.abs(along) < 3.2 && Math.abs(dPlane) < 1.9 && ry > -1.2 && ry < 7.6) {
+    const w = Math.exp(-(dPlane * dPlane) / 1.8) * Math.exp(-(along * along) / 7.5)
+            * smoothstep(7.6, 6.2, ry) * smoothstep(-1.2, 0.2, ry);
+    const n = ctx.sailNormal;                 // world unit normal of the sail
+    const vn = vx * n.x + vz * n.z;
+    vx -= n.x * vn * w * 0.92;
+    vz -= n.z * vn * w * 0.92;
+    // push flow around the sail rather than through it
+    const side = dPlane >= 0 ? 1 : -1;
+    const push = 0.22 * wm * w * side;
+    vx += n.x * push; vz += n.z * push;
+  }
+
+  /* wake: downstream of the CE, deficit + disturbance ∝ stall severity */
+  if (ctx.stall > 0.01) {
+    const down = dx * ctx.flowDir.x + dz * ctx.flowDir.z;
+    const sideDist = Math.abs(dx * -ctx.flowDir.z + dz * ctx.flowDir.x);
+    if (down > 1.0 && down < 16 && sideDist < 3.2) {
+      const dec = Math.exp(-sideDist * sideDist / 2.6) * Math.exp(-(down - 1.0) / 7.0)
+                * smoothstep(1.0, 2.4, down);
+      const amp = (0.10 + 0.75 * ctx.stall) * wm * dec;
+      vx += amp * Math.sin(2.0 * px + 3.1 * ctx.t + seed) * 0.55;
+      vz += amp * Math.cos(1.7 * pz - 2.7 * ctx.t + seed * 1.7) * 0.55;
+      vy += amp * 0.18 * Math.sin(1.4 * py + 2.0 * ctx.t + seed * 0.6);
+      // mean deficit downstream
+      vx -= wind.x * 0.22 * ctx.stall * dec;
+      vz -= wind.z * 0.22 * ctx.stall * dec;
+      if (ctx.state === 'luffing') {
+        const fl = Math.sin(ctx.t * 9 + py * 1.6 + seed) * 0.30 * wm * dec;
+        vx += ctx.sailNormal.x * fl;
+        vz += ctx.sailNormal.z * fl;
+      }
+    }
+  }
+  out.x = vx; out.y = vy; out.z = vz;
+}
+
+/* Update streaks: head advances, tail trails along the velocity. */
+function updateFlow(dt, ctx) {
+  const nShow = Math.min(FLOW_MAX, Math.round(input.flowDensity));
+  flowLines.visible = input.flowVisible && nShow > 0;
+  if (!flowLines.visible) return;
+  const pos = flowGeo.attributes.position.array;
+  const col = flowGeo.attributes.color.array;
+  const wm = Math.hypot(ctx.wind.x, ctx.wind.z) || 1;
+  for (let i = 0; i < nShow; i++) {
+    let x = flow.head[i * 3], y = flow.head[i * 3 + 1], z = flow.head[i * 3 + 2];
+    flowField(x, y, z, ctx, flow.seed[i], _fout);
+    const sp = Math.hypot(_fout.x, _fout.z);
+    x += _fout.x * dt; y += _fout.y * dt; z += _fout.z * dt;
+    flow.age[i] += dt;
+
+    const dx = x - ctx.boat.x, dz = z - ctx.boat.z;
+    const wm2 = Math.hypot(ctx.wind.x, ctx.wind.z) || 1;
+    const wx = ctx.wind.x / wm2, wz = ctx.wind.z / wm2;
+    const ax = dx * wx + dz * wz;
+    const cx = dx * -wz + dz * wx;
+    if (Math.abs(ax) > FLOW_HALF.along || Math.abs(cx) > FLOW_HALF.cross
+        || y < 0.25 || y > FLOW_HALF.up * 2 + 0.4
+        || flow.age[i] > 11 || !isFinite(x)) {
+      flowRespawn(i, ctx.boat, ctx.wind);
+      x = flow.head[i * 3]; y = flow.head[i * 3 + 1]; z = flow.head[i * 3 + 2];
+    } else {
+      flow.head[i * 3] = x; flow.head[i * 3 + 1] = y; flow.head[i * 3 + 2] = z;
+    }
+    const trail = clamp(sp * 0.075, 0.12, 0.9);
+    const vx = _fout.x / (sp || 1), vz = _fout.z / (sp || 1);
+    pos[i * 6]     = x - vx * trail; pos[i * 6 + 1] = y - 0.02; pos[i * 6 + 2] = z - vz * trail;
+    pos[i * 6 + 3] = x;              pos[i * 6 + 4] = y;        pos[i * 6 + 5] = z;
+    const bright = 0.55 + 0.45 * Math.min(sp / Math.max(wm, 0.1), 1.4);
+    col[i * 6]     = 0.02; col[i * 6 + 1] = 0.12 * bright; col[i * 6 + 2] = 0.18 * bright;
+    col[i * 6 + 3] = 0.13; col[i * 6 + 4] = 0.48;          col[i * 6 + 5] = 0.66;
+  }
+  flowGeo.setDrawRange(0, nShow * 2);
+  flowGeo.attributes.position.needsUpdate = true;
+  flowGeo.attributes.color.needsUpdate = true;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.9 Track line and wake ribbon                                      */
+/* ------------------------------------------------------------------ */
+const TRACK_MAX = 700;
+const trackGeo = new THREE.BufferGeometry();
+trackGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRACK_MAX * 3), 3));
+trackGeo.setDrawRange(0, 0);
+const trackLine = new THREE.Line(trackGeo, lineMat(0xffb545, 0.55));
+trackLine.frustumCulled = false;
+scene.add(trackLine);
+let trackCount = 0, trackTimer = 0;
+function trackPush(x, z) {
+  if (trackCount >= TRACK_MAX) return;
+  const a = trackGeo.attributes.position.array;
+  a[trackCount * 3] = x; a[trackCount * 3 + 1] = 0.05; a[trackCount * 3 + 2] = z;
+  trackCount++;
+  trackGeo.setDrawRange(0, trackCount);
+  trackGeo.attributes.position.needsUpdate = true;
+}
+function trackReset() {
+  trackCount = 0;
+  trackGeo.setDrawRange(0, 0);
+}
+
+const WAKE_N = 150;
+const wakeGeo = new THREE.BufferGeometry();
+{
+  const pos = new Float32Array(WAKE_N * 2 * 3);
+  const col = new Float32Array(WAKE_N * 2 * 3);
+  const idx = [];
+  for (let i = 0; i < WAKE_N - 1; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    idx.push(a, b, c, b, d, c);
+  }
+  wakeGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  wakeGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  wakeGeo.setIndex(idx);
+  wakeGeo.setDrawRange(0, 0);
+  for (let i = 0; i < WAKE_N; i++) {
+    const f = Math.pow(1 - i / (WAKE_N - 1), 1.6);
+    for (const k of [0, 1]) {
+      col[(i * 2 + k) * 3]     = 0.18 * f;
+      col[(i * 2 + k) * 3 + 1] = 0.42 * f;
+      col[(i * 2 + k) * 3 + 2] = 0.50 * f;
+    }
+  }
+}
+const wakeMesh = new THREE.Mesh(wakeGeo, new THREE.MeshBasicMaterial({
+  vertexColors: true, transparent: true, opacity: 0.75,
+  blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+}));
+wakeMesh.frustumCulled = false;
+scene.add(wakeMesh);
+const wakeSamples = new Float32Array(WAKE_N * 4);   // stern x, z, starboard x, z
+let wakeCount = 0, wakeTimer = 0;
+function wakePush(stern, stb) {
+  if (wakeCount < WAKE_N) wakeCount++;
+  wakeSamples.copyWithin(0, 4, WAKE_N * 4);
+  wakeSamples[(WAKE_N - 1) * 4]     = stern.x;
+  wakeSamples[(WAKE_N - 1) * 4 + 1] = stern.z;
+  wakeSamples[(WAKE_N - 1) * 4 + 2] = stb.x;
+  wakeSamples[(WAKE_N - 1) * 4 + 3] = stb.z;
+  const pos = wakeGeo.attributes.position.array;
+  const start = WAKE_N - wakeCount;
+  for (let i = start; i < WAKE_N; i++) {
+    const age = (WAKE_N - 1 - i) / (WAKE_N - 1);
+    const w = 0.55 + 1.1 * age;
+    const sx = wakeSamples[i * 4], sz = wakeSamples[i * 4 + 1];
+    const bx = wakeSamples[i * 4 + 2], bz = wakeSamples[i * 4 + 3];
+    pos[(i * 2) * 3]     = sx - bx * w; pos[(i * 2) * 3 + 1] = 0.045; pos[(i * 2) * 3 + 2] = sz - bz * w;
+    pos[(i * 2 + 1) * 3] = sx + bx * w; pos[(i * 2 + 1) * 3 + 1] = 0.045; pos[(i * 2 + 1) * 3 + 2] = sz + bz * w;
+  }
+  wakeGeo.setDrawRange(start * 6, Math.max(0, (wakeCount - 1) * 6));
+  wakeGeo.attributes.position.needsUpdate = true;
+}
+function wakeReset() {
+  wakeCount = 0; wakeTimer = 0;
+  wakeGeo.setDrawRange(0, 0);
+}
+
+/* =====================================================================
+   PART 4 — UI wiring, presets, instrumentation, charts, physics checks,
+            and the render loop.
+   ===================================================================== */
+
+const $ = id => document.getElementById(id);
+
+/* ------------------------------------------------------------------ */
+/* 4.1 Display snapshot                                                */
+/* ------------------------------------------------------------------ */
+let last = null;
+function refreshLast(F){
+  const sp = Math.hypot(S.u, S.v);
+  last = {
+    sail: F.sail, keel: F.keel, rudder: F.rudder, hull: F.hull,
+    lift: F.sail.lift, drag: F.sail.drag, cl: F.sail.cl, cd: F.sail.cd,
+    alpha: F.sail.alpha, beta: F.sail.beta, aws: F.sail.aws,
+    state: F.sail.state, stall: F.sail.stall,
+    d2: F.sail.d2, liftDir: F.sail.liftDir, nB: F.sail.nB, tack: F.sail.tack,
+    fDrive: F.sail.Fx, heelMoment: F.heelMoment, yawMoment: F.momentN,
+    airWorld: F.airWorld, apparentWorld: F.apparentWorld,
+    bsp: sp,
+    leeway: (sp > 0.15 && Math.abs(S.u) > 0.05) ? deg(Math.atan2(S.v, Math.abs(S.u))) : null,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 4.2 Controls — sliders                                              */
+/* ------------------------------------------------------------------ */
+function fmtSigned(v, digits = 0){
+  if (!isFinite(v)) return '—';
+  const s = Math.abs(v).toFixed(digits);
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + s;
+}
+function setFill(el){
+  const min = parseFloat(el.min), max = parseFloat(el.max);
+  const p = (parseFloat(el.value) - min) / (max - min) * 100;
+  el.style.setProperty('--p', p + '%');
+}
+function bindRange(id, key, fmt){
+  const el = $(id), out = $('o' + id.slice(1));
+  const upd = () => {
+    input[key] = parseFloat(el.value);
+    out.textContent = fmt(input[key]);
+    setFill(el);
+    if (key === 'heading' && input.mode === 'fixed') {
+      S.psi = rad(input[key]);
+    }
+  };
+  el.addEventListener('input', upd);
+  el._sync = () => { el.value = input[key]; out.textContent = fmt(input[key]); setFill(el); };
+  upd();
+  return el;
+}
+const sliders = {
+  tws:      bindRange('iTws', 'tws', v => v.toFixed(1) + ' m/s'),
+  wdir:     bindRange('iTwd', 'wdirFrom', v => String(Math.round(v)).padStart(3, '0') + '°'),
+  gust:     bindRange('iGustAmp', 'gustFrac', v => Math.round(v * 100) + ' %'),
+  trim:     bindRange('iTrim', 'trim', v => fmtSigned(v, 0) + '°'),
+  rudder:   bindRange('iRudder', 'rudder', v => fmtSigned(v, 0) + '°'),
+  heading:  bindRange('iHeading', 'heading', v => String(Math.round(v)).padStart(3, '0') + '°'),
+  mass:     bindRange('iMass', 'mass', v => Math.round(v) + ' kg'),
+  density:  bindRange('iPdens', 'flowDensity', v => String(Math.round(v))),
+};
+function syncSliders(){
+  for (const k in sliders) sliders[k]._sync();
+  $('iGustOn').checked = input.gustOn;
+  $('iAir').checked = input.flowVisible;
+  $('iVec').checked = input.vecVisible;
+  $('iWake').checked = input.wakeVisible;
+  $('iUnder').checked = input.underwater;
+}
+
+$('iGustOn').addEventListener('change', e => { input.gustOn = e.target.checked; });
+$('iAir').addEventListener('change', e => { input.flowVisible = e.target.checked; });
+$('iVec').addEventListener('change', e => { input.vecVisible = e.target.checked; });
+$('iWake').addEventListener('change', e => {
+  input.wakeVisible = e.target.checked;
+  trackLine.visible = input.wakeVisible && input.mode === 'free';
+  wakeMesh.visible = input.wakeVisible && input.mode === 'free';
+});
+$('iUnder').addEventListener('change', e => setUnderwater(e.target.checked));
+
+/* ------------------------------------------------------------------ */
+/* 4.3 Simulation controls                                             */
+/* ------------------------------------------------------------------ */
+function syncModeChips(){
+  $('modeChip').textContent = input.mode === 'fixed' ? 'FIXED TEST RIG' : 'FREE SAILING';
+  $('modeChip').className = 'chip ' + (input.mode === 'fixed' ? 'on' : 'warn');
+  $('bFixed').classList.toggle('on', input.mode === 'fixed');
+  $('bFree').classList.toggle('on', input.mode === 'free');
+  $('runChip').textContent = input.paused ? 'PAUSED' : 'RUNNING';
+  $('runChip').className = 'chip ' + (input.paused ? 'warn' : 'on');
+  $('bPlay').textContent = input.paused ? 'Play' : 'Pause';
+  $('speedChip').textContent = input.simSpeed + '×';
+  $('rigNote').innerHTML = input.mode === 'fixed'
+    ? '<b style="color:#cfe6f2">Test rig.</b> The mount holds position and heading and supplies every translation and yaw reaction force — the sail force is balanced by the rig, not by the water. Roll is free on the gimbal, so heel responds to the sail.'
+    : '<b style="color:#cfe6f2">Free sailing.</b> Forces and moments are integrated at 240 Hz; the follow camera tracks the boat. Basin boundary ±' + CFG.world.basinX + ' × ±' + CFG.world.basinZ + ' m.';
+  $('bS025').classList.toggle('on', input.simSpeed === 0.25);
+  $('bS05').classList.toggle('on', input.simSpeed === 0.5);
+  $('bS1').classList.toggle('on', input.simSpeed === 1);
+  $('bS2').classList.toggle('on', input.simSpeed === 2);
+}
+function setMode(mode){
+  if (input.mode === mode) return;
+  input.mode = mode;
+  input.paused = false;
+  resetSim();
+}
+function setSpeed(v){
+  input.simSpeed = v;
+  syncModeChips();
+}
+function togglePlay(){
+  input.paused = !input.paused;
+  syncModeChips();
+}
+function resetSim(){
+  S = freshState(input.heading);
+  SIM.acc = 0;
+  trackReset(); wakeReset();
+  flowReset({ x: S.x, z: S.z });
+  chartSpeed.fill(0); chartHeel.fill(0); sampleAcc = 0;
+  hideToast();
+  refreshLast(computeForces(S, input, S.t));
+  updateInstruments();
+  syncModeChips();
+}
+$('bFixed').onclick = () => setMode('fixed');
+$('bFree').onclick = () => setMode('free');
+$('bPlay').onclick = togglePlay;
+$('bReset').onclick = () => { input.paused = false; resetSim(); };
+$('bS025').onclick = () => setSpeed(0.25);
+$('bS05').onclick = () => setSpeed(0.5);
+$('bS1').onclick = () => setSpeed(1);
+$('bS2').onclick = () => setSpeed(2);
+
+$('bStep').onclick = () => {
+  if (!input.paused) togglePlay();
+  for (let i = 0; i < 60; i++) {
+    advance(1 / 60, S, input, SIM);
+    if (S.boundaryHit || S.heelLimitHit) break;
+  }
+  refreshLast(computeForces(S, input, S.t));
+  for (let i = 0; i < 4; i++) sampleCharts();
+  updateInstruments();
+  drawCharts();
+  if (S.boundaryHit) toast('Basin boundary reached',
+    'The boat stopped at the edge of the basin. Reset to sail again.', true);
+  if (S.heelLimitHit) toast('Heel outside model range',
+    'Heel passed 40°. Reduce the wind or reset the run.', true);
+};
+
+/* ------------------------------------------------------------------ */
+/* 4.4 Camera presets                                                  */
+/* ------------------------------------------------------------------ */
+const CAMS = {
+  persp: { pos: [12.2, 8.2, 13.2], tgt: [0, 3.6, 0] },
+  top:   { pos: [0, 54, 0.01],       tgt: [0, 0, 0] },
+  stern: { pos: [2.2, 4.6, 15.5],    tgt: [0, 2.8, 0] },
+  sail:  { pos: [5.2, 7.2, 6.6],     tgt: [0.0, 4.9, 0] },
+};
+function applyCam(key, keepUnderwater){
+  const c = CAMS[key];
+  if (!c) return;
+  if (!keepUnderwater && input.underwater) setUnderwater(false);
+  const bp = new THREE.Vector3(S.x, 0, S.z);
+  const off = new THREE.Vector3(...c.pos).sub(new THREE.Vector3(...c.tgt));
+  const tgt = new THREE.Vector3(...c.tgt).add(bp);
+  controls.target.copy(tgt);
+  camera.position.copy(tgt.clone().add(off));
+  controls.update();
+  document.querySelectorAll('#cPersp,#cTop,#cStern,#cSail').forEach(b => b.classList.remove('on'));
+  const map = { persp: 'cPersp', top: 'cTop', stern: 'cStern', sail: 'cSail' };
+  $(map[key]).classList.add('on');
+}
+$('cPersp').onclick = () => applyCam('persp');
+$('cTop').onclick = () => applyCam('top');
+$('cStern').onclick = () => applyCam('stern');
+$('cSail').onclick = () => applyCam('sail');
+
+function setUnderwater(on){
+  input.underwater = on;
+  $('iUnder').checked = on;
+  waterUniforms.uOpacity.value = on ? 0.18 : 0.80;
+  if (on) {
+    camera.position.set(S.x + 8.5, -1.9, S.z + 6.5);
+    controls.target.set(S.x, -0.9, S.z);
+    controls.update();
+  } else {
+    applyCam('persp', true);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 4.5 Guided experiments                                              */
+/* ------------------------------------------------------------------ */
+const PRESETS = {
+  beam: {
+    mode: 'fixed', tws: 8, wdirFrom: 90, gustFrac: 0.35, gustOn: true,
+    trim: -80, rudder: 0, heading: 0,
+    note: 'Beam reach on the test rig: the boom is eased to leeward so the flow stays attached at about 10° of attack. The green lift arrow does the work; the amber drag arrow is athwartships. Release the boat and trim in as the apparent wind draws forward.'
+  },
+  close: {
+    mode: 'free', tws: 7, wdirFrom: 35, gustFrac: 0.2, gustOn: false,
+    trim: -20, rudder: 0, heading: 0,
+    note: 'Close-hauled, released: sailing about 35° off the true wind. The sail makes a large angle of attack, so most of the force is lateral — watch the heel build, the boat develop leeway, and the keel answer with lift to windward.'
+  },
+  down: {
+    mode: 'free', tws: 8, wdirFrom: 180, gustFrac: 0.2, gustOn: false,
+    trim: -80, rudder: 0, heading: 0,
+    note: 'Dead downwind: the sail is broadside to the flow, so the model puts it in the bluff-plate regime — almost no lift, maximum drag pushing the boat along the wind. Heel is small because the lateral force nearly vanishes.'
+  },
+  stall: {
+    mode: 'fixed', tws: 7, wdirFrom: 90, gustFrac: 0, gustOn: false,
+    trim: -10, rudder: 0, heading: 0,
+    note: 'Stall demonstration: with the boom nearly on the centreline in a beam wind, the angle of attack is about 80°. Lift collapses, drag peaks, the boat heels hard against the rig, and the wake downstream turns disturbed.'
+  },
+  gust: {
+    mode: 'free', tws: 7.5, wdirFrom: 40, gustFrac: 0.32, gustOn: true,
+    trim: -22, rudder: 0, heading: 0,
+    note: 'Gust response, close-hauled and released: the deterministic gust cycle pumps the heeling moment up and lets it recover in the lulls. The restoring moment m·g·GM·sin φ fights back — watch the heel chart oscillate.'
+  },
+};
+function applyPreset(key){
+  const p = PRESETS[key];
+  if (!p) return;
+  Object.assign(input, {
+    tws: p.tws, wdirFrom: p.wdirFrom, gustFrac: p.gustFrac, gustOn: p.gustOn,
+    trim: p.trim, rudder: p.rudder, heading: p.heading, mode: p.mode,
+  });
+  input.paused = false;
+  syncSliders();
+  resetSim();
+  applyCam('persp');
+  $('presetNote').textContent = p.note;
+  document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.p === key));
+}
+document.querySelectorAll('.preset').forEach(b => {
+  b.onclick = () => applyPreset(b.dataset.p);
+});
+
+/* ------------------------------------------------------------------ */
+/* 4.6 Instrumentation                                                 */
+/* ------------------------------------------------------------------ */
+const KTS = 1.94384;
+function setVal(id, html){ $(id).innerHTML = html; }
+function unit(u){ return ' <u>' + u + '</u>'; }
+function fmtDeg(v, digits = 0){
+  if (v == null || !isFinite(v)) return '—';
+  return fmtSigned(v, digits) + '°';
+}
+function sideSuffix(v){
+  if (v == null || Math.abs(v) < 0.5) return '';
+  return v > 0 ? ' S' : ' P';
+}
+function updateInstruments(){
+  if (!last) return;
+  const twsNow = trueWindSpeed(S.t);
+  setVal('rTws', twsNow.toFixed(1) + unit('m/s'));
+  setVal('rAws', last.aws.toFixed(1) + unit('m/s'));
+  setVal('rAwa', last.aws < 0.3 ? '—'
+    : Math.abs(last.beta).toFixed(0) + '°' + sideSuffix(last.beta));
+  setVal('rSpd', (last.bsp * KTS).toFixed(1) + unit('kn'));
+  setVal('rHdg', String(Math.round(normDeg(deg(S.psi)))).padStart(3, '0') + '°');
+  setVal('rLee', last.leeway == null ? '—'
+    : Math.abs(last.leeway).toFixed(1) + '°' + sideSuffix(last.leeway));
+  setVal('rAoa', last.aws < 0.3 ? '—' : fmtDeg(last.alpha, 0));
+  setVal('rLD', last.aws < 0.3 ? '—'
+    : Math.round(last.lift) + ' / ' + Math.round(last.drag) + unit('N'));
+  setVal('rFwd', Math.round(last.fDrive) + unit('N'));
+  setVal('rHeel', fmtDeg(S.heel, 1));
+  setVal('rHeelm', Math.round(last.heelMoment) + unit('N·m'));
+  setVal('rYaw', Math.round(last.yawMoment) + unit('N·m'));
+
+  const badge = $('stateBadge');
+  const st = last.state;
+  badge.textContent = st === 'no flow' ? 'NO FLOW' : st.toUpperCase();
+  badge.className = 'chip ' +
+    (st === 'attached' ? 'on' : st === 'stalled' ? 'bad' :
+     st === 'approaching stall' || st === 'luffing' ? 'warn' : '');
+
+  const twa = deg(wrapPi(rad(input.wdirFrom - normDeg(deg(S.psi)))));
+  $('twaChip').textContent = 'TWA ' + Math.abs(twa).toFixed(0) + '°' + sideSuffix(twa);
+  $('clockChip').textContent = 't ' + S.t.toFixed(1) + ' s';
+  $('cSpdNow').textContent = (last.bsp * KTS).toFixed(1) + ' kn';
+  $('cHeelNow').textContent = fmtDeg(S.heel, 1);
+}
+
+/* ------------------------------------------------------------------ */
+/* 4.7 Charts — 30 s of simulation time at 0.25 s resolution           */
+/* ------------------------------------------------------------------ */
+const CH_N = 120, CH_DT = 0.25;
+const chartSpeed = new Float32Array(CH_N);
+const chartHeel = new Float32Array(CH_N);
+let sampleAcc = 0;
+function sampleCharts(){
+  chartSpeed.copyWithin(0, 1);
+  chartHeel.copyWithin(0, 1);
+  chartSpeed[CH_N - 1] = Math.hypot(S.u, S.v) * KTS;
+  chartHeel[CH_N - 1] = S.heel;
+}
+function drawChart(cv, data, lo, hi, color, zero){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || 280, h = cv.clientHeight || 46;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(120,180,220,0.13)';
+  g.lineWidth = 1;
+  for (let i = 1; i < 3; i++) {
+    g.beginPath(); g.moveTo(0, h * i / 3); g.lineTo(w, h * i / 3); g.stroke();
+  }
+  if (zero !== undefined) {
+    const y0 = h - (clamp(zero, lo, hi) - lo) / (hi - lo) * (h - 6) - 3;
+    g.strokeStyle = 'rgba(120,180,220,0.28)';
+    g.beginPath(); g.moveTo(0, y0); g.lineTo(w, y0); g.stroke();
+  }
+  g.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = i / (data.length - 1) * w;
+    const y = h - (clamp(data[i], lo, hi) - lo) / (hi - lo) * (h - 6) - 3;
+    if (i) g.lineTo(x, y); else g.moveTo(x, y);
+  }
+  g.strokeStyle = color;
+  g.lineWidth = 1.5;
+  g.stroke();
+  const yl = h - (clamp(data[CH_N - 1], lo, hi) - lo) / (hi - lo) * (h - 6) - 3;
+  g.fillStyle = color;
+  g.beginPath(); g.arc(w - 2, yl, 2.2, 0, Math.PI * 2); g.fill();
+}
+function drawCharts(){
+  const maxSpd = Math.max(6, Math.max(...chartSpeed) * 1.18);
+  drawChart($('cSpeed'), chartSpeed, 0, maxSpd, '#38d6e8');
+  drawChart($('cHeel'), chartHeel, -45, 45, '#ffb545', 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* 4.8 Physics checks — real numbers through the real pipeline          */
+/* ------------------------------------------------------------------ */
+function runChecks(){
+  const results = [];
+  const mk = (name, expected, got, pass) => results.push({ name, expected, got, pass });
+  const still = () => freshState(0);
+  const base = { ...input, gustOn: false, mode: 'fixed' };
+  const F = (st, over) => computeForces(st, { ...base, ...over }, 0);
+
+  { // 1 · zero apparent wind
+    const f = F(still(), { tws: 0 });
+    const mag = Math.abs(f.sail.Fx) + Math.abs(f.sail.Fy);
+    mk('Zero apparent wind → zero aero force', '0 N', mag.toExponential(1) + ' N', mag < 1e-12);
+  }
+  { // 2 · quadratic wind law
+    const a = F(still(), { tws: 5, wdirFrom: 90, trim: -80 });
+    const b = F(still(), { tws: 10, wdirFrom: 90, trim: -80 });
+    const mA = Math.hypot(a.sail.Fx, a.sail.Fy);
+    const mB = Math.hypot(b.sail.Fx, b.sail.Fy);
+    const ratio = mB / mA;
+    mk('2× wind speed → 4× aero force', 'ratio 4.000', ratio.toFixed(3),
+       Math.abs(ratio - 4) < 2e-3);
+  }
+  { // 3 · drag along the relative airflow
+    const f = F(still(), { tws: 6, wdirFrom: 90, trim: -78 });
+    const s = f.sail;
+    const dv = { x: s.Fx - s.lift * s.liftDir.x, y: s.Fy - s.lift * s.liftDir.y };
+    const mD = Math.hypot(dv.x, dv.y);
+    const cos = mD > 1e-9 ? (dv.x * s.d2.x + dv.y * s.d2.y) / mD : 0;
+    mk('Aero drag ∥ relative airflow', 'cos 1.000', cos.toFixed(4), Math.abs(cos - 1) < 1e-6);
+  }
+  { // 4 · hydrodynamic drag opposes water-relative motion
+    const st = still(); st.u = 2; st.v = 0.3;
+    const f = F(st, { tws: 0 });
+    const power = f.Fx * st.u + f.Fy * st.v;
+    mk('Water forces oppose motion', 'F·v < 0', power.toFixed(1) + ' W', power < -1);
+  }
+  { // 5 · mirror symmetry across the centreline
+    const A = F(still(), { tws: 6, wdirFrom: 270, trim: 35 });
+    const B = F(still(), { tws: 6, wdirFrom: 90, trim: -35 });
+    const dFx = Math.abs(A.sail.Fx - B.sail.Fx) / Math.max(Math.abs(A.sail.Fx), 1e-6);
+    const dFy = Math.abs(A.sail.Fy + B.sail.Fy) / Math.max(Math.abs(A.sail.Fy), 1e-6);
+    mk('Mirror → lateral flips, forward kept', 'ΔFx, ΔFy < 1%',
+       'ΔFx ' + (dFx * 100).toFixed(2) + '% · ΔFy ' + (dFy * 100).toFixed(2) + '%',
+       dFx < 0.01 && dFy < 0.01);
+  }
+  { // 6 · still boat in still air and water
+    const st = still();
+    const inp = { ...base, tws: 0, gustOn: false, mode: 'free' };
+    for (let i = 0; i < 720; i++) integrateFree(1 / 240, st, inp, st.t);
+    const spd = Math.hypot(st.u, st.v);
+    mk('Still boat, still air/water → no motion', 'speed ≈ 0',
+       spd.toExponential(1) + ' m/s', spd < 1e-9 && !st.nan);
+  }
+  { // 7 · rudder needs local flow
+    const f = F(still(), { rudder: 25, tws: 8 });
+    const fr = Math.hypot(f.rudder.Fx, f.rudder.Fy);
+    mk('No water flow → no rudder force', '0 N', fr.toExponential(1) + ' N', fr < 1e-12);
+  }
+  { // 8 · frame-rate independence through the accumulator
+    const inp = { ...base, tws: 6, wdirFrom: 90, trim: -62, rudder: 0, gustOn: false, mode: 'free' };
+    const A = freshState(0), B = freshState(0);
+    const accA = { acc: 0 }, accB = { acc: 0 };
+    let guard = 0;
+    while (A.t < 20 && guard++ < 4000) advance(1 / 144, A, inp, accA);
+    guard = 0;
+    while (B.t < 20 && guard++ < 4000) advance(1 / 37, B, inp, accB);
+    const dU = Math.abs(A.u - B.u) / Math.max(Math.abs(A.u), 1e-6);
+    const dPsi = Math.abs(deg(wrapPi(A.psi - B.psi)));
+    mk('Frame-rate independent physics', 'Δv < 3% · Δψ < 2°',
+       'Δv ' + (dU * 100).toFixed(2) + '% · Δψ ' + dPsi.toFixed(2) + '°',
+       dU < 0.03 && dPsi < 2 && !A.nan && !B.nan);
+  }
+
+  const passed = results.filter(r => r.pass).length;
+  $('checkList').innerHTML = results.map(r => `
+    <div class="check ${r.pass ? 'pass' : 'fail'}">
+      <span class="mark">${r.pass ? '✓' : '✗'}</span>
+      <span class="nm">${r.name}<br><span style="color:#7d93a8">expected ${r.expected} · got ${r.got}</span></span>
+    </div>`).join('');
+  $('checkSum').innerHTML = `<b class="${passed === results.length ? '' : 'bad'}">${passed} / ${results.length} passed</b>`;
+  $('checkTag').textContent = `${passed}/${results.length}`;
+  $('checkTag').className = 'tag' + (passed === results.length ? '' : ' bad');
+  return results;
+}
+
+/* ------------------------------------------------------------------ */
+/* 4.9 Toast                                                          */
+/* ------------------------------------------------------------------ */
+function toast(title, text, reset){
+  $('toastTitle').textContent = title;
+  $('toastText').textContent = text;
+  $('toastBtn').textContent = reset ? 'Reset' : 'Resume';
+  $('toast').style.display = 'flex';
+  input.paused = true;
+  syncModeChips();
+  $('toastBtn').onclick = () => { input.paused = false; resetSim(); };
+}
+function hideToast(){ $('toast').style.display = 'none'; }
+
+/* ------------------------------------------------------------------ */
+/* 4.10 Visual update                                                  */
+/* ------------------------------------------------------------------ */
+const _ce = new THREE.Vector3();
+const _keel = new THREE.Vector3();
+const _mast = new THREE.Vector3();
+
+function updateVisuals(dt){
+  boatGroup.position.set(S.x, 0, S.z);
+  boatGroup.rotation.y = Math.PI / 2 - S.psi;
+  heelGroup.rotation.x = rad(S.heel);
+
+  const flutter = last && last.state === 'luffing' ? S.t + 0.01 : 0;
+  updateSail(input.trim, last ? last.tack : 0, flutter);
+  rudderGroup.rotation.y = rad(input.rudder);
+
+  ceAnchor.getWorldPosition(_ce);
+  keelAnchor.getWorldPosition(_keel);
+  mastAnchor.getWorldPosition(_mast);
+
+  tunnelGroup.position.set(S.x, 0, S.z);
+  tunnelGroup.rotation.y = rad(input.wdirFrom + 90);
+  shadowPlane.position.set(S.x, 0.02, S.z);
+  keyLight.position.set(S.x + 24, 30, S.z + 14);
+  keyLight.target.position.set(S.x, 0, S.z);
+  keyLight.target.updateMatrixWorld();
+
+  /* arrows */
+  if (input.vecVisible && last){
+    const s = last.sail;
+
+    if (s.aws > 0.2){
+      const lw = bodyToWorld({ x: s.liftDir.x * s.lift, y: s.liftDir.y * s.lift }, S.psi);
+      const dw = bodyToWorld({ x: s.d2.x * s.drag, y: s.d2.y * s.drag }, S.psi);
+      const aw = bodyToWorld({ x: s.Fx, y: s.Fy }, S.psi);
+      const lLen = Math.hypot(lw.x, lw.z) / ARROW_SCALE;
+      const dLen = Math.hypot(dw.x, dw.z) / ARROW_SCALE;
+      const aLen = Math.hypot(aw.x, aw.z) / ARROW_SCALE;
+      setArrow(arrows.lift, _ce, { x: lw.x, y: 0, z: lw.z }, clamp(lLen, ARROW_MIN, ARROW_MAX));
+      setArrow(arrows.drag, _ce, { x: dw.x, y: 0, z: dw.z }, clamp(dLen, ARROW_MIN, ARROW_MAX));
+      setArrow(arrows.aero, _ce, { x: aw.x, y: 0, z: aw.z }, clamp(aLen, ARROW_MIN, ARROW_MAX));
+    } else {
+      arrows.lift.visible = arrows.drag.visible = arrows.aero.visible = false;
+    }
+
+    const kF = Math.hypot(last.keel.Fx, last.keel.Fy);
+    if (kF > 2){
+      const kw = bodyToWorld({ x: last.keel.Fx, y: last.keel.Fy }, S.psi);
+      setArrow(arrows.keel, _keel, { x: kw.x, y: 0, z: kw.z }, clamp(kF / ARROW_SCALE, ARROW_MIN, ARROW_MAX));
+    } else arrows.keel.visible = false;
+
+    const air = last.airWorld;
+    const airM = Math.hypot(air.x, air.z);
+    if (airM > 0.05){
+      const org = { x: S.x - air.x / airM * 11, y: 5.6, z: S.z - air.z / airM * 11 };
+      setArrow(arrows.twind, org, { x: air.x, y: 0, z: air.z }, clamp(airM / WIND_SCALE, 0.5, 3.6));
+    } else arrows.twind.visible = false;
+
+    const ap = last.apparentWorld;
+    const apM = Math.hypot(ap.x, ap.z);
+    if (apM > 0.05){
+      setArrow(arrows.awind, _mast, { x: ap.x, y: 0, z: ap.z }, clamp(apM / WIND_SCALE, 0.4, 3.6));
+    } else arrows.awind.visible = false;
+  } else {
+    for (const k in arrows) arrows[k].visible = false;
+  }
+
+  /* illustrative airflow */
+  const wind = trueWindWorld(S.t);
+  const sailNormalW = bodyToWorld(last ? last.nB : { x: 0, y: -1 }, S.psi);
+  const flowDirW = bodyToWorld(last ? last.d2 : { x: 1, y: 0 }, S.psi);
+  updateFlow(input.paused ? 0 : dt * input.simSpeed, {
+    wind,
+    boat: { x: S.x, z: S.z },
+    ce: { x: _ce.x, y: _ce.y, z: _ce.z },
+    psi: S.psi,
+    trim: input.trim,
+    sailNormal: { x: sailNormalW.x, z: sailNormalW.z },
+    flowDir: { x: flowDirW.x, z: flowDirW.z },
+    stall: last ? last.stall : 0,
+    state: last ? last.state : 'attached',
+    t: S.t,
+  });
+
+  /* track + wake */
+  const showTrail = input.wakeVisible && input.mode === 'free';
+  trackLine.visible = showTrail;
+  wakeMesh.visible = showTrail;
+  if (showTrail && !input.paused){
+    trackTimer += dt * input.simSpeed;
+    if (trackTimer > 0.25){
+      trackTimer = 0;
+      trackPush(S.x, S.z);
+    }
+    wakeTimer += dt * input.simSpeed;
+    if (wakeTimer > 0.18 && Math.hypot(S.u, S.v) > 0.4){
+      wakeTimer = 0;
+      const f = fwdVec(S.psi), sb = stbVec(S.psi);
+      wakePush({ x: S.x - f.x * 3.6, z: S.z - f.z * 3.6 }, { x: sb.x, z: sb.z });
+    }
+  }
+
+  /* follow camera */
+  if (input.mode === 'free'){
+    const delta = new THREE.Vector3(S.x - prevBoat.x, 0, S.z - prevBoat.z);
+    camera.position.add(delta);
+    controls.target.add(delta);
+    prevBoat.set(S.x, 0, S.z);
+  } else {
+    prevBoat.set(S.x, 0, S.z);
+  }
+
+  waterUniforms.uTime.value = S.t;
+  waterUniforms.uUnder.value = camera.position.y < 0 ? 1 : 0;
+  controls.update();
+}
+
+const prevBoat = new THREE.Vector3(0, 0, 0);
+
+/* ------------------------------------------------------------------ */
+/* 4.11 Main loop                                                      */
+/* ------------------------------------------------------------------ */
+const clock = new THREE.Clock();
+let instTimer = 0, chartTimer = 0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  if (!input.paused){
+    advance(dt * input.simSpeed, S, input, SIM);
+    if (S.boundaryHit){
+      toast('Basin boundary reached',
+        'The boat reached the edge of the test basin. The run is paused — reset to sail again.', true);
+    } else if (S.heelLimitHit){
+      toast('Heel outside model range',
+        'Heel passed 40°, beyond the restoring-moment model’s valid range. Reduce the wind or reset the run.', true);
+    }
+    sampleAcc += dt * input.simSpeed;
+    while (sampleAcc >= CH_DT){ sampleAcc -= CH_DT; sampleCharts(); }
+  }
+
+  refreshLast(computeForces(S, input, S.t));
+  updateVisuals(dt);
+  renderer.render(scene, camera);
+
+  instTimer += dt;
+  if (instTimer > 0.1){ instTimer = 0; updateInstruments(); }
+  chartTimer += dt;
+  if (chartTimer > 0.2){ chartTimer = 0; drawCharts(); }
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* =====================================================================
+   PART 5 — boot: default preset, physics checks, first frame.
+   ===================================================================== */
+
+/* Read-only debug handle for automated checks (harmless in production). */
+window.__lab = {
+  get state(){ return { x:S.x, z:S.z, psi:deg(S.psi), u:S.u, v:S.v, w:S.w,
+                        heel:S.heel, heelRate:S.heelRate, t:S.t,
+                        boundaryHit:S.boundaryHit, heelLimitHit:S.heelLimitHit, nan:S.nan }; },
+  get input(){ return { ...input }; },
+  get last(){ return last ? { aws:last.aws, alpha:last.alpha, lift:last.lift, drag:last.drag,
+                              fDrive:last.fDrive, state:last.state, bsp:last.bsp,
+                              heelMoment:last.heelMoment } : null; },
+  computeForces: (st, inp, t) => computeForces(st, inp, t),
+  runChecks,
+  reset: () => resetSim(),
+  applyPreset,
+  debug: { scene, camera, renderer, sailMesh, boomGroup, boatGroup, heelGroup, controls },
+};
+
+try {
+  applyPreset('beam');
+  runChecks();
+  updateInstruments();
+  drawCharts();
+  animate();
+  window.__aeronautReady = true;
+} catch (e) {
+  window.__labFail('Startup error',
+    'The lab failed while initialising: <code>' + (e && e.message ? e.message : e) + '</code>');
+  throw e;
+}
+</script>
+</body>
+</html>
